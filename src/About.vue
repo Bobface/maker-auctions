@@ -15,19 +15,19 @@
           <div class="md-title" ref="communitySubheader">1.2 Community</div>
           <p>
             <ul>
-              <li>Discord Server Todo</li>
+              <li>Discord: <a class="link" href="https://discord.gg/vKcXSvH" target="_blank">Maker Auctions</a></li>
             </ul>
           </p>
           <div class="md-title" ref="externalSubheader">1.3 External resources</div>
           <p>
             <ul>
-              <li>Github Todo</li>
-              <li><a class="link" href="https://docs.makerdao.com/" target="_blank">MakerDAO Documentation</a></li>
+              <li>Github: <a class="link" href="https://github.com/Bobface/maker-auctions" target="_blank">Bobface/maker-auctions</a></li>
+              <li>MakerDAO: <a class="link" href="https://docs.makerdao.com/" target="_blank">Official Documentation</a></li>
             </ul>
           </p>
           <div class="md-title" ref="donationsSubheader">1.4 Donations</div>
           <p>
-            If you want to support this project and help me cover the costs I would be glad to receive your donation at 0xxxxx.
+            If you want to support this project and help me cover the costs I would be glad to receive your donation at 0xE9B3c292904114e6e6F04a363Ae4c0F800f3236D.
           </p>
           <div class="md-display-1" ref="disclaimerHeader" style="margin-top: 30px;">2. DISCLAIMER FOR MAKER AUCTIONS</div>
           <p>If you require any more information or have any questions about our site's disclaimer, please feel free to contact us by email at maker-auctions@outlook.com</p>
