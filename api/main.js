@@ -5,6 +5,8 @@ const conf = require('./config')
 const io = require("socket.io")
 let ws
 
+const discord = require('./discord')
+
 const flipAuctions = require('./flipAuctions')
 const flapAuctions = require('./flapAuctions')
 const flopAuctions = require('./flopAuctions')
@@ -57,6 +59,10 @@ function flopWSCallback(state) {
 
 async function main() {
 
+    if(process.env.DISCORD_TOKEN || process.env.DISCORD_TEST_TOKEN) {
+        await discord.start()
+    }
+
     if(conf.isLocal() || conf.isWebtest()) {
         ws = io.listen(8000);
     } else {
@@ -77,7 +83,7 @@ async function main() {
     const latestBlock = await web3.eth.getBlockNumber()
     console.log('Starting at block', latestBlock)
 
-    flipAuctions.startParser(latestBlock, flipWSCallback)
+    flipAuctions.startParser(latestBlock, flipWSCallback, discord.notifyNewFlipAuction)
     flapAuctions.startParser(latestBlock, flapWSCallback)
     flopAuctions.startParser(latestBlock, flopWSCallback)
 

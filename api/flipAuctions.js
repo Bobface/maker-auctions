@@ -6,6 +6,7 @@ const moment = require('moment');
 const BigNumber = require('bignumber.js')
 
 let state
+let isInitialized = false
 
 let currentBlock = 0
 let parserRunning = false
@@ -15,6 +16,7 @@ const ignoreAuctions = [
 ]
 
 let wsStateCallback
+let onNewAuction
 
 function makeAuctionPhase(auction) {
     if(!auction.isValid)
@@ -143,7 +145,7 @@ async function getNewAuctionsInBlock(currency) {
             if(error) 
                 return
             
-            state[currency].auctions[ci] = makeAuction(
+            const auction = makeAuction(
                 result.lot.toString(),
                 result.bid.toString(),
                 result.tab.toString(),
@@ -154,6 +156,13 @@ async function getNewAuctionsInBlock(currency) {
                 result.end,
                 true
                 )
+
+            state[currency].auctions[ci] = auction
+
+            if(isInitialized) {
+                onNewAuction(currency, ci, auction)
+            }
+
         }).catch(function(error) {
             console.log('flipAuctions: getNewAuctionsInBlock:', error.message)
                 
@@ -287,6 +296,8 @@ async function parser() {
         db.write(state)
         wsStateCallback(state)
         printState()
+
+        isInitialized = true
     }
 
     parserRunning = false
@@ -332,8 +343,9 @@ function initDB() {
     console.log('flipAuctions: initialized state', state)
 }
 
-exports.startParser = async (startBlock, callback) => {
-    wsStateCallback = callback
+exports.startParser = async (startBlock, wsCallback, newAuctionCallback) => {
+    wsStateCallback = wsCallback
+    onNewAuction = newAuctionCallback
     initDB()
     onNewBlock({number: startBlock}, undefined)
 
