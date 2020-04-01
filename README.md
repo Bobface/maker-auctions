@@ -1,24 +1,24 @@
-# maker-auctions
+# Maker Auctions
+Official repository for [maker-auctions.io](https://maker-auctions.io)
 
-## Project setup
-```
-npm install
-```
+Maker Auctions provides an interface for the MakerDAO auctions running on the Ethereum blockchain. 
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+## Dev
+#### /api
+Contains the Websocket backend serving auction data. The way auctions are stored on-chain requires some amount of parsing and state-keeping which hinders user experience. The backend keeps track of all running auctions and their state.
 
-### Compiles and minifies for production
-```
-npm run build
-```
+#### /contracts
+Contains the Solidity contract source code including mocks for various parts of the MakerDAO system and surrounding smart contracts.
 
-### Lints and fixes files
-```
-npm run lint
-```
+#### /migrations
+Contains truffle migrations for mainnet and local testnet with test auctions (webtest).
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+#### /scripts
+Contains utility scripts
+- `webtest.js` deploys a local testnet with test auctions
+
+#### /src
+Contains Vue frontend source
+
+#### /test/contracts
+Contains truffle contract unit tests
