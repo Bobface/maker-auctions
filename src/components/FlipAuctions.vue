@@ -8,7 +8,7 @@
       md-description="New auctions will appear here as soon as they are available.">
     </md-empty-state>
     
-    <md-table v-model="getFlipAuctions" class="auction-table-container" md-fixed-header md-card v-if="getFlipAuctions.length !== 0 && flipAuctionsInitialized">
+    <md-table v-model="getFlipAuctions" class="auction-table-container" md-card v-if="getFlipAuctions.length !== 0 && flipAuctionsInitialized">
       <md-table-row slot="md-table-row" slot-scope="{ item }">
         <md-table-cell md-label="ID">{{ item.id }}</md-table-cell>
         <md-table-cell md-label="PHASE">{{ item.phase }}</md-table-cell>
