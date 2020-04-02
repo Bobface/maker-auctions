@@ -11,6 +11,10 @@ import "../interfaces/dss/IFlop.sol";
 
 import "../interfaces/token/IERC20.sol";
 
+/*
+    Central storage for common variables
+    across all proxies.
+*/
 contract ProxyActionsStorage {
 
     IVat public vat;

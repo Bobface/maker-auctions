@@ -2,6 +2,13 @@ pragma solidity 0.5.17;
 
 import "./Proxy.sol";
 
+/*
+    Manages and deploys user's proxies.
+    Stores actions and storage contracts.
+
+    Storage and actions can be upgraded
+    but have to go through a timelock first.
+*/
 contract ProxyManager {
 
     address public owner;
@@ -39,6 +46,9 @@ contract ProxyManager {
         emit NewProxyActionsStorage(address(0), _proxyActionsStorage);
     }
 
+    /*
+        Submit new values for the timelock.
+    */
     function submitTimelockValues(
         uint _pendingTimelockDuration,
         address _pendingProxyActions,
@@ -56,6 +66,10 @@ contract ProxyManager {
         emit ValuesSubmittedForTimelock(_pendingTimelockDuration, _pendingProxyActions, _pendingProxyActionsStorage);
     }
 
+    /*
+        Implement the values which have
+        gone through the timelock.
+    */
     function implementTimelockValues() external onlyOwner {
         // solium-disable-next-line security/no-block-members
         require(now > currentTimelock, "ProxyManager / implementTimelockValues: timelock not over");
@@ -81,6 +95,10 @@ contract ProxyManager {
         currentTimelock = 0;
     }
 
+    /*
+        Deploy a proxy for a user
+        and initialize it.
+    */
     function deploy() external {
         require(proxies[msg.sender] == address(0), "ProxyManager / deploy: already deployed");
         address newProxy = address(new Proxy(msg.sender));

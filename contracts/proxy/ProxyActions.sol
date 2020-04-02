@@ -6,6 +6,15 @@ import "../interfaces/token/IWETH.sol";
 import "../interfaces/dss/IVat.sol";
 
 
+/*
+    The actions to be performed by user's proxies.
+    User's proxies delegatecall into this contract.
+
+    This contract should never be called directly.
+
+    When reading the contract code below, remember
+    that it will be executed inside a Proxy.
+*/
 contract ProxyActions {
 
     /*
@@ -31,6 +40,10 @@ contract ProxyActions {
         _;
     }
 
+    /*
+        Called after a new proxy has been deployed.
+        Sets up all necessary allowances and 'hopes' in the vat.
+    */
     function setup() external {
         require(msg.sender == proxyManager, "ProxyActions / setup: not allowed");
 
@@ -69,11 +82,17 @@ contract ProxyActions {
         FLIP methods
     */
 
+    /*
+        Claim a won flip auction and withdraw to wallet.
+    */
     function flipClaimAndExit(bytes32 what, uint id) external onlyOwner {
         uint claimed = flipClaimInternal(what, id);
         exitInternal(what, owner, claimed);
     }
 
+    /*
+        Claim a won flip auction.
+    */
     function flipClaim(bytes32 what, uint id) external onlyOwner {
         flipClaimInternal(what, id);
     }
@@ -91,6 +110,13 @@ contract ProxyActions {
         return afterBalance - beforeBalance;
     }
 
+    /*
+        Reduce the lot on a flip auction.
+        If the Dai balance in the vat is not enough
+        (has to be calculated outside the contract)
+        `pull` amount of Dai will be moved from wallet to vat
+        before placing the bid.
+    */
     function flipReduceLot(bytes32 what, uint id, uint pull, uint bid, uint lot) external onlyOwner {
 
         // pull: 10**18
@@ -106,6 +132,13 @@ contract ProxyActions {
         flip.dent(id, lot, bid);
     }
 
+    /*
+        Bid Dai on a flip auction.
+        If the Dai balance in the vat is not enough
+        (has to be calculated outside the contract)
+        `pull` amount of Dai will be moved from wallet to vat
+        before placing the bid.
+    */
     function flipBidDai(bytes32 what, uint id, uint pull, uint bid, uint lot) external onlyOwner {
 
         // pull: 10**18
@@ -125,11 +158,17 @@ contract ProxyActions {
         FLAP methods
     */
 
+    /*
+        Claim a won flap auction and withdraw to wallet.
+    */
     function flapClaimAndExit(uint id) external onlyOwner {
         uint claimed = flapClaimInternal(id);
         exitInternal("DAI", owner, claimed);
     }
 
+    /*
+        Claim a won flap auction.
+    */
     function flapClaim(uint id) external onlyOwner {
         flapClaimInternal(id);
     }
@@ -144,6 +183,13 @@ contract ProxyActions {
         return afterBalance - beforeBalance;
     }
 
+    /*
+        Bid MKR on a flap auction.
+        If the MKR balance in the proxy is not enough
+        (has to be calculated outside the contract)
+        `pull` amount of MKR will be moved from wallet to the proxy
+        before placing the bid.
+    */
     function flapBidMkr(uint id, uint pull, uint bid, uint lot) external onlyOwner {
 
         if(pull > 0) {
@@ -157,11 +203,17 @@ contract ProxyActions {
         FLOP methods
     */
 
+    /*
+        Claim a won flop auction and withdraw to wallet.
+    */
     function flopClaimAndExit(uint id) external onlyOwner {
         uint claimed = flopClaimInternal(id);
         exitInternal("MKR", owner, claimed);
     }
 
+    /*
+        Claim a won flop auction.
+    */
     function flopClaim(uint id) external onlyOwner {
         flopClaimInternal(id);
     }
@@ -175,6 +227,13 @@ contract ProxyActions {
         return afterBalance - beforeBalance;
     }
 
+    /*
+        Reduce the MKR amount on a flop auction.
+        If the DAI balance in the vat is not enough
+        (has to be calculated outside the contract)
+        `pull` amount of Dai will be moved from wallet to the vat
+        before placing the bid.
+    */
     function flopReduceMkr(uint id, uint pull, uint bid, uint lot) external onlyOwner {
 
         // pull: 10**18
@@ -191,6 +250,12 @@ contract ProxyActions {
         JOIN methods
     */
 
+    /*
+        Deposit funds from wallet to the vat.
+        Incase of MKR funds will be moved to the proxy
+        instead of the vat.
+        ETH will be converted to WETH before depositing.
+    */
     function join(bytes32 what, uint amount) public payable onlyOwner {
         joinInternal(what, amount);
     }
@@ -221,6 +286,12 @@ contract ProxyActions {
         EXIT methods
     */
 
+    /*
+        Withdraw funds from vat to receiver.
+        Incase of MKR funds will be moved from the proxy
+        instead of the vat.
+        WETH will be converted to ETH before sending.
+    */
     function exit(bytes32 what, address receiver, uint amount) public onlyOwner {
         exitInternal(what, receiver, amount);
     }
