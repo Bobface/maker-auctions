@@ -133,6 +133,7 @@ const getters = {
 const actions = {
     async updateBalances({commit, rootState}) {
 
+        const start = new Date()
         commit('setBalancesLoading', true)
         
         const web3 = rootState.web3Provider.web3
@@ -335,7 +336,17 @@ const actions = {
             commit(commits[i].mutation, commits[i].params)
         }
 
-        commit('setBalancesLoading', false)
+        const minTime = 1000
+        const end = new Date()
+        const timeDiff = end - start
+
+        if(timeDiff >= minTime) {
+            commit('setBalancesLoading', false)
+        } else {
+            setTimeout(() => {
+                commit('setBalancesLoading', false)
+            }, minTime - timeDiff)
+        }
     },
     setBalancesLoading({commit}, b) {
         commit('setBalancesLoading', b)
