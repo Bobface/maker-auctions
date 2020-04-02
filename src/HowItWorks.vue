@@ -115,6 +115,16 @@
             </li>
             <br />
             <li>
+              <strong>How often do auctions happen?</strong><br />
+              The number of auctions is highly dependant on market situation and not really predictable
+            </li>
+            <br />
+            <li>
+              <strong>Can I get notified when new auctions appear?</strong><br />
+              The Discord server has a bot which notifies users when new auctions are available
+            </li>
+            <br />
+            <li>
               <strong>How can I get in touch?</strong><br />
               Have a look at the <i>Community</i> section at <router-link class="link" to="/about">ABOUT</router-link>
             </li>
