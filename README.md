@@ -1,5 +1,5 @@
 # Maker Auctions
-Official repository for [maker-auctions.io](https://maker-auctions.io) (currently under [maker-auctions.io/beta](https://maker-auctions.io/beta))
+Official repository for [maker-auctions.io](https://maker-auctions.io)
 
 Maker Auctions provides an interface for the MakerDAO auctions running on the Ethereum blockchain. 
 
