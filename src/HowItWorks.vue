@@ -134,11 +134,13 @@
         <div class="md-subheading sidebarHeader" @click="scrollTo('faqHeader')">3. FAQ</div>
       </div>
     </div>
+    <Footer />
   </div>
 </template>
 
 <script>
-import Header from './components/Header.vue'
+import Header from './components/Header'
+import Footer from './components/Footer'
 
 export default {
   name: 'HowItWorks',
@@ -151,6 +153,7 @@ export default {
   },
   components: {
     Header,
+    Footer,
   },
 }
 </script>

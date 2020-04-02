@@ -42,20 +42,20 @@
                 </md-button>
               </center>
             </div>
-          
         </md-toolbar>
         <md-divider />
         <md-divider />
-          <FlipAuctions v-if="flip" />
-          <FlapAuctions v-if="flap" />
-          <FlopAuctions v-if="flop" />
+        <FlipAuctions v-if="flip" />
+        <FlapAuctions v-if="flap" />
+        <FlopAuctions v-if="flop" />
       </div>
       <div class="md-layout-item md-size-25" style="display:flex; flex-direction: column;"><Sidebar /></div>
-      <Web3Overlay />
-      <MoveOverlay />
-      <FlipAuctionBidOverlay />
-      <FlipAuctionClaimOverlay />
     </div>
+    <Web3Overlay />
+    <MoveOverlay />
+    <FlipAuctionBidOverlay />
+    <FlipAuctionClaimOverlay />
+    <Footer />
   </div>
 </template>
 
@@ -71,6 +71,7 @@ import Web3Overlay from './components/Web3Overlay'
 import MoveOverlay from './components/MoveOverlay'
 import FlipAuctionBidOverlay from './components/FlipAuctionBidOverlay'
 import FlipAuctionClaimOverlay from './components/FlipAuctionClaimOverlay'
+import Footer from './components/Footer'
 
 export default {
   name: 'Auctions',
@@ -108,6 +109,7 @@ export default {
     MoveOverlay,
     FlipAuctionBidOverlay,
     FlipAuctionClaimOverlay,
+    Footer,
   },
   computed: mapGetters(['getFlipAuctions', 'getFlapAuctions', 'getFlopAuctions']),
 }

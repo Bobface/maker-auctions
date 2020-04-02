@@ -15,7 +15,7 @@
           <div class="md-title" ref="communitySubheader">1.2 Community</div>
           <p>
             <ul>
-              <li>Discord: <a class="link" href="https://discord.gg/vKcXSvH" target="_blank">Maker Auctions</a></li>
+              <li><a href="https://discord.gg/vKcXSvH" target="_blank"><img src="https://discordapp.com/api/guilds/277884550850281473/widget.png?style=shield" alt=""></a></li>
             </ul>
           </p>
           <div class="md-title" ref="externalSubheader">1.3 External resources</div>
@@ -113,11 +113,13 @@
         <div class="md-body-1 sidebarSubheader" @click="scrollTo('consentSubheader')">3.8 Consent</div>
       </div>
     </div>
+    <Footer />
   </div>
 </template>
 
 <script>
-import Header from './components/Header.vue'
+import Header from './components/Header'
+import Footer from './components/Footer'
 
 export default {
   name: 'About',
@@ -130,6 +132,7 @@ export default {
   },
   components: {
     Header,
+    Footer,
   },
 }
 </script>
