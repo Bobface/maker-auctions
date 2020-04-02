@@ -3,10 +3,12 @@ const moment = require('moment')
 
 const state = {
     flopAuctions: [],
+    flopAuctionsInitialized: false,
 }
 
 const getters = {
     getFlopAuctions: () => (state.flopAuctions),
+    flopAuctionsInitialized: () => (state.flopAuctionsInitialized),
 }
 
 const actions = {
@@ -43,12 +45,14 @@ const actions = {
         // desc
         parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
 
+        commit('setFlopAuctionsInitialized', true)
         commit('setFlopAuctions', parsed)
     }
 }
 
 const mutations = {
     setFlopAuctions: (state, auctions) => (state.flopAuctions = auctions),
+    setFlopAuctionsInitialized: (state, b) => (state.flopAuctionsInitialized = b),
 }
 
 function makeAuctionFromRaw(rootState, id, raw) {
