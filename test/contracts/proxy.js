@@ -158,7 +158,7 @@ contract('ProxyActions', accounts => {
         );
     })
 
-    it('can join and exit', async () => {
+    it('should join and exit', async () => {
         const amount = 100000000
 
         // Since the owner also pays gas, we need a seperate eth wallet to verify the amount
@@ -195,7 +195,7 @@ contract('ProxyActions', accounts => {
     
     })
 
-    it('can win eth flip auction', async () => {
+    it('should win eth flip auction', async () => {
 
         const id = 1
         const flip = mockFlips[ethBytes]
@@ -232,7 +232,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await web3.eth.getBalance(ethReceiver)).toString(), updatedLot.toString(), 'wrong eth balance')
     })
 
-    it('can lose eth flip auction', async () => {
+    it('should lose eth flip auction', async () => {
 
         const id = 1
         const flip = mockFlips[ethBytes]
@@ -273,7 +273,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await web3.eth.getBalance(ethReceiver)).toString(), updatedLot, 'wrong eth balance')
     })
 
-    it('can win bat flip auction', async () => {
+    it('should win bat flip auction', async () => {
 
         const bytes = batBytes
         const token = mockBat
@@ -310,7 +310,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await token.balanceOf.call(user)).toString(), updatedLot.toString(), 'wrong bat balance')
     })
 
-    it('can lose bat flip auction', async () => {
+    it('should lose bat flip auction', async () => {
 
         const bytes = batBytes
         const token = mockBat
@@ -351,7 +351,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await token.balanceOf.call(otherUser)).toString(), updatedLot.toString(), 'wrong other user bat balance')
     })
 
-    it('can win usdc flip auction', async () => {
+    it('should win usdc flip auction', async () => {
 
         const bytes = usdcBytes
         const token = mockUsdc
@@ -389,7 +389,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await token.balanceOf.call(user)).toString(), updatedLot.div(new web3.utils.BN('10').pow(new web3.utils.BN('12'))).toString(), 'wrong usdc balance')
     })
 
-    it('can lose usdc flip auction', async () => {
+    it('should lose usdc flip auction', async () => {
 
         const bytes = usdcBytes
         const token = mockUsdc
@@ -431,7 +431,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await token.balanceOf.call(otherUser)).toString(), updatedLot.div(new web3.utils.BN('10').pow(new web3.utils.BN('12'))).toString(), 'wrong other user usdc balance')
     })
 
-    it('can win flap auction', async () => {
+    it('should win flap auction', async () => {
 
         const lot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
         const expectUser = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18')))
@@ -451,7 +451,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await mockDai.balanceOf.call(user)).toString(), expectUser.toString(), 'wrong dai balance')
     })
 
-    it('can lose flap auction', async () => {
+    it('should lose flap auction', async () => {
 
         const lot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
         const expectOtherUser = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18')))
@@ -478,7 +478,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await mockDai.balanceOf.call(otherUser)).toString(), expectOtherUser.toString(), 'wrong other user dai balance')
     })
 
-    it('can win flop auction', async () => {
+    it('should win flop auction', async () => {
 
         const initialLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18'))) // 10 mkr
         const bid = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
@@ -497,7 +497,7 @@ contract('ProxyActions', accounts => {
         assert.equal((await mockDai.balanceOf.call(user)).toString(), '0', 'wrong dai balance')
     })
 
-    it('can lose flop auction', async () => {
+    it('should lose flop auction', async () => {
 
         const initialLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18'))) // 10 mkr
         const bid = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
