@@ -8,13 +8,13 @@ const { exec } = require("child_process");
 */
 
 // Dont worry, this private key is used for ganache testing only
-const testAdminPrivateKey = '0x2f37606fcbf08753c96189ce822a22ef08d90d9fa85ed1ca6034424640e22231'
-const testUserPrivateKey = '0x05fd5f19cd79d828d98b6e7ad687932f00229981c4c5286068730e18fc4fcfb0'
+const userOnePrivateKey = '0x2f37606fcbf08753c96189ce822a22ef08d90d9fa85ed1ca6034424640e22231'
+const userTwoPrivateKey = '0x05fd5f19cd79d828d98b6e7ad687932f00229981c4c5286068730e18fc4fcfb0'
 
 const ethBalance = '1000000000000000000000' // 1000 eth
 
 console.log('--- Starting ganache')
-const ganache = exec(`ganache-cli -p 7545 --account "${testAdminPrivateKey},${ethBalance}" --account "${testUserPrivateKey},${ethBalance}"`)
+const ganache = exec(`ganache-cli -p 7545 --account "${userOnePrivateKey},${ethBalance}" --account "${userTwoPrivateKey},${ethBalance}"`)
 ganache.stdout.pipe(process.stdout)
 
 console.log('--- Starting truffle migrations')
