@@ -50,12 +50,18 @@ contract ProxyActions {
         vat.hope(flap);
         vat.hope(flop);
 
+        //solium-disable-next-line error-reason
         require(store.tokens("ETH").approve(address(store.tokenJoins("ETH")), uint(-1)));
+        //solium-disable-next-line error-reason
         require(store.tokens("DAI").approve(daiJoin, uint(-1)));
+        //solium-disable-next-line error-reason
         require(store.tokens("BAT").approve(address(store.tokenJoins("BAT")), uint(-1)));
+        //solium-disable-next-line error-reason
         require(store.tokens("USDC").approve(address(store.tokenJoins("USDC")), uint(-1)));
 
+        //solium-disable-next-line error-reason
         require(store.tokens("MKR").approve(flap, uint(-1)));
+        //solium-disable-next-line error-reason
         require(store.tokens("DAI").approve(flop, uint(-1)));
     }
 
