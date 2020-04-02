@@ -36,7 +36,6 @@ export default {
           this.connectMetamask()
       },
       closeClicked: function() {
-          console.log('close!')
           this.hideConnectWeb3Dialog()
       },
       ...mapActions(['hideConnectWeb3Dialog', 'connectMetamask'])
