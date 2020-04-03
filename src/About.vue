@@ -15,7 +15,7 @@
           <div class="md-title" ref="communitySubheader">1.2 Community</div>
           <p>
             <ul>
-              <li><a href="https://discord.gg/vKcXSvH" target="_blank"><img src="https://discordapp.com/api/guilds/277884550850281473/widget.png?style=shield" alt=""></a></li>
+              <li><a href="https://discord.gg/vKcXSvH" target="_blank"><img src="https://img.shields.io/discord/694819602445631558?color=34495e" alt=""></a></li>
             </ul>
           </p>
           <div class="md-title" ref="externalSubheader">1.3 External resources</div>
