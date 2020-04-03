@@ -4,6 +4,7 @@ const web3 = require('./web3').web3
 const conf = require('./config')
 const io = require("socket.io")
 let ws
+let connectedWSClients = 0
 
 const discord = require('./discord')
 
@@ -88,9 +89,11 @@ async function main() {
     flopAuctions.startParser(latestBlock, flopWSCallback, discord.notifyNewFlopAuction)
 
     ws.on("connection", (socket) => {
+        connectedWSClients++
         console.info(`ws: client connected [id=${socket.id}]`);
 
         socket.on("disconnect", () => {
+            connectedWSClients--
             console.info(`ws: client disconnected [id=${socket.id}]`);
         });
 
@@ -102,6 +105,9 @@ async function main() {
         console.log('sent flop')
     });
     
+    setInterval(function() {
+        console.log('got', connectedWSClients, 'connected clients')
+    }, 10000)
 }
 
 main()
