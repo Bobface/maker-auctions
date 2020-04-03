@@ -84,8 +84,8 @@ async function main() {
     console.log('Starting at block', latestBlock)
 
     flipAuctions.startParser(latestBlock, flipWSCallback, discord.notifyNewFlipAuction)
-    flapAuctions.startParser(latestBlock, flapWSCallback)
-    flopAuctions.startParser(latestBlock, flopWSCallback)
+    flapAuctions.startParser(latestBlock, flapWSCallback, discord.notifyNewFlapAuction)
+    flopAuctions.startParser(latestBlock, flopWSCallback, discord.notifyNewFlopAuction)
 
     ws.on("connection", (socket) => {
         console.info(`ws: client connected [id=${socket.id}]`);

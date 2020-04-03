@@ -6,6 +6,7 @@ const moment = require('moment');
 const BigNumber = require('bignumber.js')
 
 let state
+let isInitialized = false
 
 let currentBlock = 0
 let parserRunning = false
@@ -14,6 +15,7 @@ const ignoreAuctions = [
 ]
 
 let wsStateCallback
+let onNewAuction
 
 function makeAuctionPhase(auction) {
     if(!auction.isValid)
@@ -133,6 +135,10 @@ async function getNewAuctionsInBlock(blockNumber) {
                 result.end,
                 true
                 )
+
+            if(isInitialized) {
+                onNewAuction(ci, state.auctions[ci])
+            }
         }).catch(function(error) {
             console.log('flopAuctions: getNewAuctionsInBlock:', error.message)
                 
@@ -243,6 +249,8 @@ async function parser() {
         db.write(state)
         wsStateCallback(state)
         printState()
+
+        isInitialized = true
     }
 
     parserRunning = false
@@ -288,7 +296,7 @@ function initDB() {
     console.log('flopAuctions: initialized state', state)
 }
 
-exports.startParser = async (startBlock, callback) => {
+exports.startParser = async (startBlock, callback, newAuctionCallback) => {
 
     wsStateCallback = callback
     initDB()
