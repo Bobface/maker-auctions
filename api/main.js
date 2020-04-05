@@ -24,7 +24,10 @@ const flapState = {
     wsMsg: '',
 }
 
-let flopState = {}
+const flopState = {
+    state: {},
+    wsMsg: '',
+}
 
 function flipWSCallback(state) {
 
@@ -83,18 +86,31 @@ function flapWSCallback(state) {
     ws.emit('data', flapState.wsMsg)
 }
 
-function getWSFlopMsg() {
-    const msg = {
-        topic: 'flop',
-        content: flopState,
-    }
-    const json = JSON.stringify(msg)
-    return json 
-}
-
 function flopWSCallback(state) {
-    flopState = state    
-    ws.emit('data', getWSFlopMsg())
+
+    flopState.state = state
+    flopState.wsMsg = ''
+
+    const wsObj = {}
+    wsObj.history = {}
+    wsObj.auctions = flopState.state.auctions
+
+    const historyKeys = []
+    Object.keys(flopState.state.history).forEach(id => {
+        historyKeys.push(parseInt(id))
+    })
+    historyKeys.sort(function(a, b) { return b - a });
+
+    for(let i = 0; i < historyKeys.length && i < 10; i++) {
+        const hKey = historyKeys[i].toString()
+        wsObj.history[hKey] = flopState.state.history[hKey]
+    }
+
+    flopState.wsMsg = JSON.stringify({
+        topic: 'flop',
+        content: wsObj,
+    })
+    ws.emit('data', flopState.wsMsg)
 }
 
 async function main() {
@@ -141,7 +157,7 @@ async function main() {
         console.log('sent flip')
         socket.emit('data', flapState.wsMsg)
         console.log('sent flap')
-        socket.emit('data', getWSFlopMsg())
+        socket.emit('data', flopState.wsMsg)
         console.log('sent flop')
     });
     

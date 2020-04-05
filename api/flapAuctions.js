@@ -161,7 +161,7 @@ async function parser() {
                 async function() {
                     let promises = []
                     for(let c = 0; c < tends.length; c++) {
-                        promises.push(updateAuction(updates[c], block.number, flap.contract))
+                        promises.push(updateAuction(tends[c], block.number, flap.contract))
                     }
                     await Promise.all(promises)
 
