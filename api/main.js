@@ -3,6 +3,8 @@ const fs = require('fs')
 const web3 = require('./web3').web3
 const conf = require('./config')
 const io = require("socket.io")
+const flip = require('./contracts/flip')
+
 let ws
 let connectedWSClients = 0
 
@@ -12,22 +14,42 @@ const flipAuctions = require('./flipAuctions')
 const flapAuctions = require('./flapAuctions')
 const flopAuctions = require('./flopAuctions')
 
-let flipState = {}
+const flipState = {
+    state: {},
+    wsMsg: '',
+}
+
 let flapState = {}
 let flopState = {}
 
-function getWSFlipMsg() {
-    const msg = {
-        topic: 'flip',
-        content: flipState,
-    }
-    const json = JSON.stringify(msg)
-    return json 
-}
-
 function flipWSCallback(state) {
-    flipState = state    
-    ws.emit('data', getWSFlipMsg())
+
+    flipState.state = state
+    flipState.wsMsg = ''
+
+    const wsObj = {}
+    Object.keys(flip.contracts).forEach(token => {
+        wsObj[token] = {}
+        wsObj[token].history = {}
+        wsObj[token].auctions = flipState.state[token].auctions
+
+        const historyKeys = []
+        Object.keys(flipState.state[token].history).forEach(id => {
+            historyKeys.push(parseInt(id))
+        })
+        historyKeys.sort(function(a, b) { return b - a });
+
+        for(let i = 0; i < historyKeys.length && i < 10; i++) {
+            const hKey = historyKeys[i].toString()
+            wsObj[token].history[hKey] = flipState.state[token].history[hKey]
+        }
+    })
+
+    flipState.wsMsg = JSON.stringify({
+        topic: 'flip',
+        content: wsObj,
+    })
+    ws.emit('data', flipState.wsMsg)
 }
 
 function getWSFlapMsg() {
@@ -61,6 +83,7 @@ function flopWSCallback(state) {
 async function main() {
 
     if(process.env.DISCORD_TOKEN || process.env.DISCORD_TEST_TOKEN) {
+        console.log('===================== DISCORD TESTSERVER ENABLED ==========================')
         await discord.start()
     }
 
@@ -97,7 +120,7 @@ async function main() {
             console.info(`ws: client disconnected [id=${socket.id}]`);
         });
 
-        socket.emit('data', getWSFlipMsg())
+        socket.emit('data', flipState.wsMsg)
         console.log('sent flip')
         socket.emit('data', getWSFlapMsg())
         console.log('sent flap')

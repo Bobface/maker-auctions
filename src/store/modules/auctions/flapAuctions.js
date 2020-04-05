@@ -16,9 +16,11 @@ const actions = {
        
         let parsed = []
 
-        Object.keys(msg.auctions).forEach(function(id) {
-            parsed.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
-        });
+        if(msg.auctions) {
+            Object.keys(msg.auctions).forEach(function(id) {
+                parsed.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
+            });
+        }
 
         // Check for invalid entries
         for(let i = 0; i < parsed.length; i++) {

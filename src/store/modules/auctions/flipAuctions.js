@@ -14,12 +14,15 @@ const getters = {
 const actions = {
     setFlipAuctionsFromWS({ commit, rootState, rootGetters }, auctions) {
 
+        console.log(auctions)
         let parsed = []
 
         Object.keys(auctions).forEach(function(currency) {
-            Object.keys(auctions[currency].auctions).forEach(function(id) {
-                parsed.push(makeAuctionFromRaw(rootState, rootGetters, id, currency, auctions[currency].auctions[id]))
-            });
+            if(auctions[currency].auctions) {
+                Object.keys(auctions[currency].auctions).forEach(function(id) {
+                    parsed.push(makeAuctionFromRaw(rootState, rootGetters, id, currency, auctions[currency].auctions[id]))
+                });
+            }
         });
 
         // Check for invalid entries
