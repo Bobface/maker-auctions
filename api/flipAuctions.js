@@ -373,7 +373,7 @@ async function updateAuctionHistory(id, token) {
             ttlBlock = key
         }
     })
-    const ttl = state[token].ttls[ttlBlock]
+    const ttl = parseInt(state[token].ttls[ttlBlock])
 
     let tauBlock = 0
     Object.keys(state[token].taus).forEach(key => {
@@ -381,10 +381,10 @@ async function updateAuctionHistory(id, token) {
             tauBlock = key
         }
     })
-    const tau = state[token].taus[tauBlock]
+    const tau = parseInt(state[token].taus[tauBlock])
 
-    const kickBlockTimestamp = (await web3.eth.getBlock(kickBlock)).timestamp
-    const lastBidBlockTimestamp = (await web3.eth.getBlock(lastBidBlock)).timestamp
+    const kickBlockTimestamp = parseInt((await web3.eth.getBlock(kickBlock)).timestamp)
+    const lastBidBlockTimestamp = parseInt((await web3.eth.getBlock(lastBidBlock)).timestamp)
 
     let end
     if(kickBlockTimestamp + tau < lastBidBlockTimestamp + ttl) {
@@ -398,7 +398,7 @@ async function updateAuctionHistory(id, token) {
         lot: new web3.utils.BN(lot, 16).toString(10),
         bid: new web3.utils.BN(bid, 16).toString(10),
         guy: lastBidEvent.returnValues.usr,
-        end: end,
+        end: end.toString(),
     }
 
     if(state[token].auctions[id]) {

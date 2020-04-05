@@ -102,16 +102,15 @@ async function parser() {
             if(toBlock > block.number) {
                 toBlock = block.number
             }
-console.log('------------- P1')
+
             eventResults.push(await parseEventsInBlocks(i, toBlock, flap.contractHTTP))
-            console.log('------------- P2')
         }
 
         const promises = []
         let hadKick = false
         let tends = []
         let deals = []
-console.log('-------------- A')
+
         for(let i = 0; i < eventResults.length; i++) {
             const result = eventResults[i]
             tends = tends.concat(...result.tends)
@@ -133,9 +132,8 @@ console.log('-------------- A')
         deals = deals.filter(function(elem, pos) {
             return deals.indexOf(elem) == pos;
         })
-        console.log('--------------B')
+
         if(hadKick) {
-            console.log('-------------- C1')
             promises.push(
                 updateKicks(block.number, flap.contract, tends.concat(...dealIDs))
                 .then(async () => {
@@ -159,7 +157,6 @@ console.log('-------------- A')
                 })
             )
         } else {
-            console.log('-------------- C2')
             promises.push(
                 async function() {
                     let promises = []
@@ -184,9 +181,7 @@ console.log('-------------- A')
         }
 
         await Promise.all(promises)
-
         updateAuctionPhases()
-
         state.lastBlock = block.number
         db.write(state)
         wsStateCallback(state)
@@ -210,12 +205,8 @@ async function parseEventsInBlocks(from, to, contract) {
     while(fromBlock <= to) {
         let events = []
         try {
-            console.log('--- A')
-            console.log(fromBlock, toBlock)
-            events = await contract.getPastEvents('LogNote', {fromBlock: fromBlock, toBlock: toBlock})
-            console.log('--- B')
+            events = await getLogNoteEvents(fromBlock, toBlock, contract)
             const kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
-            console.log('--- C')
             for(let i = 0; i < kicks.length; i++) {
                 state.kicks[kicks[i].returnValues.id] = kicks[i]
             }
@@ -225,7 +216,6 @@ async function parseEventsInBlocks(from, to, contract) {
             }
 
         } catch(ex) {
-            console.log(ex)
             let numBlocks = toBlock - fromBlock 
             toBlock = fromBlock + parseInt(numBlocks / 2)
             console.log('flapAuctions: could not get events from', numBlocks + 1, 'blocks, trying', toBlock - fromBlock + 1, 'blocks')
@@ -234,13 +224,14 @@ async function parseEventsInBlocks(from, to, contract) {
 
         for(let i = 0; i < events.length; i++) {
             const event = events[i]
-            const sig = event.returnValues.sig.slice(2, 10)
-            
+            const sig = event.raw.topics[0].slice(2, 10)
             if(sig === sigs.deal) {
-                const id = new web3.utils.BN(event.returnValues.arg1.slice(2), 16).toString(10)
+                const arg1 = event.raw.topics[2]
+                const id = new web3.utils.BN(arg1.slice(2), 16).toString(10)
                 result.deals.push({block: event.blockNumber, id: id})
             } else if(sig === sigs.tend) {
-                const id = new web3.utils.BN(event.returnValues.arg1.slice(2), 16).toString(10)
+                const arg1 = event.raw.topics[2]
+                const id = new web3.utils.BN(arg1.slice(2), 16).toString(10)
 
                 if(!state.lastEvents[id] || 
                     state.lastEvents[id].blockNumber < event.blockNumber ||
@@ -252,8 +243,10 @@ async function parseEventsInBlocks(from, to, contract) {
                 result.tends.push(id)
             } else if(sig === sigs.file) {
                 const blockNum = event.blockNumber
-                const what = event.returnValues.arg1.slice(2)
-                const value = new web3.utils.BN(event.returnValues.arg2.slice(2), 16).toString(10)
+                const arg1 = event.raw.topics[2]
+                const arg2 = event.raw.topics[3]
+                const what = arg1.slice(2)
+                const value = new web3.utils.BN(arg2.slice(2), 16).toString(10)
                 if(what === fileWhats.ttl) {
                     state.ttls[blockNum] = value
                 } else if(what === fileWhats.tau) {
@@ -264,6 +257,27 @@ async function parseEventsInBlocks(from, to, contract) {
 
         fromBlock = toBlock + 1
         toBlock = to
+    }
+
+    return result
+}
+
+async function getLogNoteEvents(fromBlock, toBlock, contract) {
+    const result = []
+    const allEvents = await contract.getPastEvents('allEvents', { fromBlock: fromBlock, toBlock: toBlock})
+    for(let i = 0; i < allEvents.length; i++) {
+        const event = allEvents[i]
+        if(!event || !event.raw.topics) {
+            continue
+        }
+
+        const sig = event.raw.topics[0].slice(2, 10)
+        if(sig === sigs.tend ||
+            sig === sigs.deal ||
+            sig === sigs.file) {
+            
+            result.push(event)
+        }
     }
 
     return result
@@ -338,7 +352,7 @@ async function updateAuctionHistory(id) {
             ttlBlock = key
         }
     })
-    const ttl = state.ttls[ttlBlock]
+    const ttl = parseInt(state.ttls[ttlBlock])
 
     let tauBlock = 0
     Object.keys(state.taus).forEach(key => {
@@ -346,10 +360,10 @@ async function updateAuctionHistory(id) {
             tauBlock = key
         }
     })
-    const tau = state.taus[tauBlock]
+    const tau = parseInt(state.taus[tauBlock])
 
-    const kickBlockTimestamp = (await web3.eth.getBlock(kickBlock)).timestamp
-    const lastBidBlockTimestamp = (await web3.eth.getBlock(lastBidBlock)).timestamp
+    const kickBlockTimestamp = parseInt((await web3.eth.getBlock(kickBlock)).timestamp)
+    const lastBidBlockTimestamp = parseInt((await web3.eth.getBlock(lastBidBlock)).timestamp)
 
     let end
     if(kickBlockTimestamp + tau < lastBidBlockTimestamp + ttl) {
@@ -361,8 +375,8 @@ async function updateAuctionHistory(id) {
     state.history[id] = {
         lot: new web3.utils.BN(lot, 16).toString(10),
         bid: new web3.utils.BN(bid, 16).toString(10),
-        guy: lastBidEvent.returnValues.usr,
-        end: end,
+        guy: '0x' + lastBidEvent.raw.topics[1].slice(26),
+        end: end.toString(),
     }
 
     if(state.auctions[id]) {
@@ -422,22 +436,19 @@ function printState() {
     let tableData = []
 
     for(let i = 0; i <= state.lastID; i++) {
-
         const auction = state.auctions[i]
         if(auction== undefined) {
             continue
         } else if(!auction.isValid) {
             tableData.push({
                 id: i,
-                currency: currency,
                 phase: 'INV',
             })
             continue
         }
-
         
-        const lot = BigNumber(auction.lot).div(BigNumber('10').pow(BigNumber('18'))).toFixed(2)
-        const bid = BigNumber(auction.bid).div(BigNumber('10').pow(BigNumber('45'))).toFixed(4)
+        const lot = BigNumber(auction.lot).div(BigNumber('10').pow(BigNumber('45'))).toFixed(2)
+        const bid = BigNumber(auction.bid).div(BigNumber('10').pow(BigNumber('18'))).toFixed(4)
 
         let earlyEnd
 
@@ -446,7 +457,6 @@ function printState() {
 
         tableData.push({
             id: i,
-            currency: currency,
             phase: auction.phase,
             lot: lot,
             bid: bid,
