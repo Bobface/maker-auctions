@@ -218,17 +218,15 @@ module.exports = async function(deployer, network, accounts) {
 
 
 
-        // Start flap auctions
-        /*const flapLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
+        // Start flap auction
+        const flapLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('45'))) // 10 dai
         await mockVat.mockMintDai(accounts[0], flapLot)
-        //await mockVat.mockMintDai(accounts[0], flapLot)
-
-        // No bid
         await mockFlap.kick(flapLot, 0)
-        // With bid
-        //await mockFlap.kick(flapLot, new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18'))))
 
-        // Start flop auctions*/
+        // Start flop auction
+        const flopLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18'))) // 10 mkr
+        await mockMkr.mockMint(accounts[0], flapLot)
+        await mockFlop.kick('0x0000000000000000000000000000000000000000', flopLot, 0)
 
         // Truffle does not store the addresses of multiple instances of the same contract.
         // Therefore we store them ourselves.

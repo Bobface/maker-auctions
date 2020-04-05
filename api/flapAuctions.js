@@ -3,6 +3,7 @@ const web3 = require('./web3').web3
 const flap = require('./contracts/flap')
 const db = require('./db').getDB('flap')
 const moment = require('moment');
+const conf = require('./config')
 const BigNumber = require('bignumber.js')
 
 let state
@@ -11,32 +12,385 @@ let isInitialized = false
 let currentBlock = 0
 let parserRunning = false
 
-const ignoreAuctions = [
-]
-
 let wsStateCallback
 let onNewAuction
 
-function makeAuctionPhase(auction) {
-    if(!auction.isValid)
-        return 'INV'
-
-    let phase = 'RUN'
-        
-    if(auction.end == 0)
-        phase = 'DEL'
-    else if(auction.tic != 0 && (auction.end < parseInt(Date.now() / 1000) || auction.tic < parseInt(Date.now() / 1000)))
-        phase = 'FIN'
-    else if(auction.tic == 0 && auction.end < parseInt(Date.now() / 1000))
-        phase = 'RES'
-
-    return phase
+const sigs = {
+    tend: '4b43ed12',
+    deal: 'c959c42b',
+    file: '29ae8114',
 }
 
-function makeAuction(lot, bid, guy, tic, end, isValid) {
+const fileWhats = {
+    ttl: '74746c0000000000000000000000000000000000000000000000000000000000',
+    tau: '7461750000000000000000000000000000000000000000000000000000000000',
+}
+
+exports.startParser = async (startBlock, wsCallback, newAuctionCallback) => {
+    wsStateCallback = wsCallback
+    onNewAuction = newAuctionCallback
+    initDB()
+    onNewBlock({number: startBlock}, undefined)
+
+    // Subscribe to new blocks
+    let blockSubscription = web3.eth.subscribe('newBlockHeaders')
+    blockSubscription.subscribe((error, result) => {
+        if (error) {
+            console.log('flapAuctions: Error subscribing to event', error)
+            process.exit()
+        }
+    }).on('data', onNewBlock)
+
+    console.log('flapAuctions: ready')
+}
+
+function initDB() {
+    const read = db.read()
+    if(read === undefined) {
+        console.log('flapAuctions: empty db, creating default content')
+        const content = {
+            lastBlock: conf.isWebtest() ? 0 : 8900000 - 1,
+            lastID: 0,
+            auctions: {},
+            history: {},
+            lastEvents: {},
+            kicks: {},
+            ttls: {'1': '10800'},
+            taus: {'1': '172800'},
+        }
+        db.write(content)
+        state = content
+    } else {
+        state = read
+    }
+
+    console.log('flapAuctions: initialized state')
+}
+
+function onNewBlock(block, error) {
+    if(error) {
+        console.log('flapAuctions: onNewBlock:', error.message)
+        process.exit()
+    }
+
+    // Handler fires twice per block
+    if(block.number <= currentBlock.number)
+        return
+
+    if(block.number % 1000 == 0 || currentBlock.number == 0)
+        console.log('flapAuctions: onNewBlock: New block', block.number)
+
+    currentBlock = block
+
+    if(!parserRunning) {
+        parserRunning = true
+        parser()
+    }
+}
+
+async function parser() {
+
+    while(state.lastBlock !== currentBlock.number) {
+
+        const block = currentBlock
+        console.log('flapAuctions: parsing block', block.number)
+        const maxParseBlocks = 100000
+
+        const eventResults = []
+        for(let i = state.lastBlock + 1; i <= block.number; i += maxParseBlocks) {
+            let toBlock = i + maxParseBlocks - 1
+            if(toBlock > block.number) {
+                toBlock = block.number
+            }
+console.log('------------- P1')
+            eventResults.push(await parseEventsInBlocks(i, toBlock, flap.contractHTTP))
+            console.log('------------- P2')
+        }
+
+        const promises = []
+        let hadKick = false
+        let tends = []
+        let deals = []
+console.log('-------------- A')
+        for(let i = 0; i < eventResults.length; i++) {
+            const result = eventResults[i]
+            tends = tends.concat(...result.tends)
+            deals = deals.concat(...result.deals)
+
+            if(result.hadKick) {
+                hadKick = true
+            }
+        }
+
+        const dealIDs = []
+        for(let c = 0; c < deals.length; c++) {
+            dealIDs.push(deals[c].id)
+        }
+
+        tends = tends.filter(function(elem, pos) {
+            return tends.indexOf(elem) == pos < 0 && dealIDs.indexOf(elem) < 0
+        })
+        deals = deals.filter(function(elem, pos) {
+            return deals.indexOf(elem) == pos;
+        })
+        console.log('--------------B')
+        if(hadKick) {
+            console.log('-------------- C1')
+            promises.push(
+                updateKicks(block.number, flap.contract, tends.concat(...dealIDs))
+                .then(async () => {
+                    let promises = []
+                    for(let c = 0; c < tends.length; c++) {
+                        promises.push(updateAuction(tends[c], block.number, flap.contract))
+                    }
+                    await Promise.all(promises)
+
+                    for(let c = 0; c < deals.length; c += 100) {
+                        if(c >= deals.length) {
+                            c = deals.length - 1
+                        }
+
+                        const promises = []
+                        for(let j = 0; c + j < deals.length && j < 100; j++) {
+                            promises.push(updateAuctionHistory(deals[c + j].id))
+                        }
+                        await Promise.all(promises)
+                    }
+                })
+            )
+        } else {
+            console.log('-------------- C2')
+            promises.push(
+                async function() {
+                    let promises = []
+                    for(let c = 0; c < tends.length; c++) {
+                        promises.push(updateAuction(updates[c], block.number, flap.contract))
+                    }
+                    await Promise.all(promises)
+
+                    for(let c = 0; c < deals.length; c += 100) {
+                        if(c >= deals.length) {
+                            c = deals.length - 1
+                        }
+
+                        const promises = []
+                        for(let j = 0; c + j < deals.length && j < 100; j++) {
+                            promises.push(updateAuctionHistory(deals[c + j].id))
+                        }
+                        await Promise.all(promises)
+                    }
+                }()
+            )
+        }
+
+        await Promise.all(promises)
+
+        updateAuctionPhases()
+
+        state.lastBlock = block.number
+        db.write(state)
+        wsStateCallback(state)
+        printState()
+        isInitialized = true
+    }
+
+    parserRunning = false
+}
+
+async function parseEventsInBlocks(from, to, contract) {
+    const result = {
+        hadKick: false,
+        tends: [],
+        deals: [],
+    }
+
+    let fromBlock = from
+    let toBlock = to
+
+    while(fromBlock <= to) {
+        let events = []
+        try {
+            console.log('--- A')
+            console.log(fromBlock, toBlock)
+            events = await contract.getPastEvents('LogNote', {fromBlock: fromBlock, toBlock: toBlock})
+            console.log('--- B')
+            const kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
+            console.log('--- C')
+            for(let i = 0; i < kicks.length; i++) {
+                state.kicks[kicks[i].returnValues.id] = kicks[i]
+            }
+
+            if(kicks.length > 0) {
+                result.hadKick = true
+            }
+
+        } catch(ex) {
+            console.log(ex)
+            let numBlocks = toBlock - fromBlock 
+            toBlock = fromBlock + parseInt(numBlocks / 2)
+            console.log('flapAuctions: could not get events from', numBlocks + 1, 'blocks, trying', toBlock - fromBlock + 1, 'blocks')
+            continue
+        }
+
+        for(let i = 0; i < events.length; i++) {
+            const event = events[i]
+            const sig = event.returnValues.sig.slice(2, 10)
+            
+            if(sig === sigs.deal) {
+                const id = new web3.utils.BN(event.returnValues.arg1.slice(2), 16).toString(10)
+                result.deals.push({block: event.blockNumber, id: id})
+            } else if(sig === sigs.tend) {
+                const id = new web3.utils.BN(event.returnValues.arg1.slice(2), 16).toString(10)
+
+                if(!state.lastEvents[id] || 
+                    state.lastEvents[id].blockNumber < event.blockNumber ||
+                    (state.lastEvents[id].blockNumber === event.blockNumber &&
+                    state.lastEvents[id].transactionIndex < event.transactionIndex)) {
+                    state.lastEvents[id] = event
+                }
+
+                result.tends.push(id)
+            } else if(sig === sigs.file) {
+                const blockNum = event.blockNumber
+                const what = event.returnValues.arg1.slice(2)
+                const value = new web3.utils.BN(event.returnValues.arg2.slice(2), 16).toString(10)
+                if(what === fileWhats.ttl) {
+                    state.ttls[blockNum] = value
+                } else if(what === fileWhats.tau) {
+                    state.taus[blockNum] = value
+                }
+            }
+        }
+
+        fromBlock = toBlock + 1
+        toBlock = to
+    }
+
+    return result
+}
+
+async function updateKicks(blockNum, contract, ignore) {
+
+    const kicks = await contract.methods.kicks().call(undefined, blockNum)
+
+    if(kicks === state.lastID) {
+        return
+    }
+
+    const promises = []
+    const updatedIDs = []
+    for(let i = state.lastID + 1; i <= kicks; i++) {
+        if(ignore && ignore.indexOf(i.toString()) > -1) {
+            continue
+        }
+        updatedIDs.push(i)
+        promises.push(updateAuction(i, blockNum, contract))
+    }
+    if(promises.length > 0) {
+        await Promise.all(promises)
+    }
+
+    state.lastID = kicks
+
+    if(isInitialized) {
+        for(let i = 0; i < updatedIDs.length; i++) {
+            onNewAuction(updatedIDs[i], state.auctions[updatedIDs[i]])
+        }
+    }
+}
+
+async function updateAuction(id, blockNum, contract) {
+    console.log('flapAuctions: updating auction',id)
+    const result = await getAuction(id, blockNum, contract)
+
+    if(result.guy === '0x0000000000000000000000000000000000000000') {
+        return
+    }
+
+    state.auctions[id] = makeAuction(
+        result.lot.toString(),
+        result.bid.toString(),
+        result.usr,
+        result.gal,
+        result.guy,
+        result.tic,
+        result.end,
+        true,
+    )
+}
+
+async function updateAuctionHistory(id) {
+
+    console.log('flapAuctions: updating history for ', id)
+
+    const lastBidEvent = state.lastEvents[id]
+    const lastBidEventData = lastBidEvent.raw.data.slice(10)
+    const lastBidBlock = lastBidEvent.blockNumber
+    const lot = lastBidEventData.slice(192, 256)
+    const bid = lastBidEventData.slice(256, 320)
+
+    const kickEvent = state.kicks[id]
+    const kickBlock = kickEvent.blockNumber
+
+    let ttlBlock = 0
+    Object.keys(state.ttls).forEach(key => {
+        if(key > ttlBlock && key <= lastBidBlock) {
+            ttlBlock = key
+        }
+    })
+    const ttl = state.ttls[ttlBlock]
+
+    let tauBlock = 0
+    Object.keys(state.taus).forEach(key => {
+        if(key > tauBlock && key <= kickBlock) {
+            tauBlock = key
+        }
+    })
+    const tau = state.taus[tauBlock]
+
+    const kickBlockTimestamp = (await web3.eth.getBlock(kickBlock)).timestamp
+    const lastBidBlockTimestamp = (await web3.eth.getBlock(lastBidBlock)).timestamp
+
+    let end
+    if(kickBlockTimestamp + tau < lastBidBlockTimestamp + ttl) {
+        end = kickBlockTimestamp + tau
+    } else {
+        end = lastBidBlockTimestamp + ttl
+    }
+
+    state.history[id] = {
+        lot: new web3.utils.BN(lot, 16).toString(10),
+        bid: new web3.utils.BN(bid, 16).toString(10),
+        guy: lastBidEvent.returnValues.usr,
+        end: end,
+    }
+
+    if(state.auctions[id]) {
+        delete state.auctions[id]
+    }
+
+    delete state.kicks[id]
+    delete state.lastEvents[id]
+
+    console.log('flapAuctions: updated history for', id)
+}
+
+function updateAuctionPhases() {
+    Object.keys(state.auctions).forEach(id => {
+        state.auctions[id].phase = makeAuctionPhase(state.auctions[id])
+    })
+}
+
+async function getAuction(id, blockNum, contract) {
+    return await contract.methods.bids(id).call(undefined, blockNum)
+}
+
+function makeAuction(lot, bid, usr, gal, guy, tic, end, isValid) {
     let auction = {
         lot: lot,
         bid: bid,
+        usr: usr,
+        gal: gal,
         guy: guy,
         tic: tic,
         end: end,
@@ -47,9 +401,20 @@ function makeAuction(lot, bid, guy, tic, end, isValid) {
     return auction
 }
 
-function isAuctionDeleted(id) {
-    const auction = state.auctions[id]
-    return auction.end == 0 || ignoreAuctions.includes(id)
+function makeAuctionPhase(auction) {
+    if(!auction.isValid)
+        return 'INV'
+
+    let phase = 'RUN'
+
+    if(auction.end == 0)
+        phase = 'DEL'
+    else if(auction.tic != 0 && (auction.end < parseInt(Date.now() / 1000) || auction.tic < parseInt(Date.now() / 1000)))
+        phase = 'FIN'
+    else if(auction.tic == 0 && auction.end < parseInt(Date.now() / 1000))
+        phase = 'RES'
+
+    return phase
 }
 
 function printState() {
@@ -64,15 +429,16 @@ function printState() {
         } else if(!auction.isValid) {
             tableData.push({
                 id: i,
+                currency: currency,
                 phase: 'INV',
             })
             continue
         }
 
-            
-        const lot = BigNumber(auction.lot).div(BigNumber('10').pow(BigNumber('45'))).toFixed(4)
-        const bid = BigNumber(auction.bid).div(BigNumber('10').pow(BigNumber('18'))).toFixed(2)
-    
+        
+        const lot = BigNumber(auction.lot).div(BigNumber('10').pow(BigNumber('18'))).toFixed(2)
+        const bid = BigNumber(auction.bid).div(BigNumber('10').pow(BigNumber('45'))).toFixed(4)
+
         let earlyEnd
 
         if(auction.tic < auction.end) earlyEnd = auction.tic
@@ -80,6 +446,7 @@ function printState() {
 
         tableData.push({
             id: i,
+            currency: currency,
             phase: auction.phase,
             lot: lot,
             bid: bid,
@@ -91,225 +458,13 @@ function printState() {
 
         numAuctions++
     }
+
     console.table(tableData)
 
     tableData = {
-        lastID: state.lastID
-    }
-    console.table([tableData])
-
-
-    tableData = {
         timestamp: parseInt(Date.now() / 1000),
-        block: currentBlock,
+        block: currentBlock.number,
         auctions: numAuctions,
     }
     console.table([tableData])
-}
-
-async function getNewAuctionsInBlock(blockNumber) {
-
-    let currentID = parseInt(await flap.contract.methods.kicks().call(undefined, blockNumber, undefined))
-
-    const lastID = state.lastID
-    if(lastID >= currentID)
-        return
-
-    console.log('flapAuctions: got', currentID - lastID, 'new auctions')
-    
-    let awaits = []
-    for(let i = lastID + 1; i <= currentID; i++) {
-        
-        const ci = i;
-        console.log('flapAuctions: requesting state for auction', ci)
-
-        awaits.push(flap.contract.methods.bids(ci).call(undefined, blockNumber, function(error, result) {
-            if(error) 
-                return
-            
-            state.auctions[ci] = makeAuction(
-                result.lot.toString(),
-                result.bid.toString(),
-                result.guy,
-                result.tic,
-                result.end,
-                true
-                )
-
-            if(isInitialized) {
-                onNewAuction(ci, state.auctions[ci])
-            }
-        }).catch(function(error) {
-            console.log('flapAuctions: getNewAuctionsInBlock:', error.message)
-                
-            state.auctions[ci] = makeAuction(
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                false
-                )
-        }))   
-    }
-
-    for(let i = 0; i < awaits.length; i++) {
-        await awaits[i]
-        console.log('flapAuctions: received state for request', i + 1)
-    }
-
-    state.lastID = currentID
-}
-
-async function updateRunningAuctionsImpl(blockNumber, invalidOnly, run, maxRun) {
-
-    if(run == maxRun) 
-        return
-
-    let awaits = []
-    let deletes = []
-
-    for(let i = 0; i <= state.lastID; i++) {
-
-        // Hack
-        if(state.auctions[i] == undefined)
-            continue
-
-        if(invalidOnly && state.auctions[i].isValid)
-            continue
-
-        console.log('flapAuctions: requesting updated state for auction', i)
-        const ci = i;
-
-        awaits.push(flap.contract.methods.bids(ci).call(undefined, blockNumber, function(error, result) {
-            if(error) 
-                return
-
-            const prevState = state.auctions[ci]
-            state.auctions[ci] = makeAuction(
-                result.lot.toString(),
-                result.bid.toString(),
-                result.guy,
-                result.tic,
-                result.end,
-                true
-                )
-
-            if(isAuctionDeleted(ci))
-                deletes.push(ci)
-
-        }).catch(function(error) {
-            console.log('flapAuctions: updateRunningAuctions:', error.message)
-                
-            const prevState = state.auctions[ci]
-            // Keep the state, just set flag
-            state.auctions[ci].isValid = false
-        }));
-    }
-
-    for(let i = 0; i < awaits.length; i++) {
-        await awaits[i]
-        console.log('flapAuctions: updated state for request', i+1)
-    }
-
-    // We delete here to not break the iteration
-    for(let i = 0; i < deletes.length; i++) {
-        delete state.auctions[deletes[i]]
-        console.log('flapAuctions: deleted auction', deletes[i])
-    }
-
-    // Check if we have invalid entries
-    for(let i = 0; i <= state.lastID; i++) {
-        const auction = state.auctions[i]
-
-        if(auction == undefined) 
-            continue
-
-        if(!auction.isValid) {
-            return updateRunningAuctionsImpl(blockNumber, true, run + 1, maxRun);
-        }
-    }
-}
-
-async function updateRunningAuctions(blockNumber) {
-    return updateRunningAuctionsImpl(blockNumber, false, 0, 3)    
-}
-
-async function parser() {
-    parserRunning = true
-
-    let lastParseBlock = 0
-    while(lastParseBlock != currentBlock) {
-        lastParseBlock = currentBlock
-        console.log('flapAuctions: Parsing block', lastParseBlock)
-
-        await getNewAuctionsInBlock(lastParseBlock)
-        await updateRunningAuctions(lastParseBlock)
-
-        db.write(state)
-        wsStateCallback(state)
-        printState()
-
-        isInitialized = true
-    }
-
-    parserRunning = false
-}
-
-function onNewBlock(block, error) {
-
-    if(error) {
-        console.log('flapAuctions: onNewBlock:', error.message)
-        process.exit()
-    }
-
-    // Handler fires twice per block
-    if(block.number <= currentBlock)
-        return
-
-    if(block.number % 1000 == 0 || currentBlock == 0)
-        console.log('flapAuctions: onNewBlock: New block', block.number)
-
-    currentBlock = block.number
-
-    if(!parserRunning) {
-        parser()
-    }
-}
-
-function initDB() {
-    const read = db.read()
-    if(read === undefined) {
-        console.log('flapAuctions: empty db, creating default content')
-
-        let content = {
-            lastID: 0,
-            auctions: {},
-        }
-
-        db.write(content)
-        state = content
-    } else {
-        state = read
-    }
-
-    console.log('flapAuctions: initialized state', state)
-}
-
-exports.startParser = async (startBlock, callback, newAuctionCallback) => {
-
-    wsStateCallback = callback
-    initDB()
-    onNewBlock({number: startBlock}, undefined)
-
-    // Subscribe to new blocks
-    let blockSubscription = web3.eth.subscribe('newBlockHeaders')
-    blockSubscription.subscribe((error, result) => {
-        if (error) {
-            console.log('flapAuctions: Error subscribing to event', error)
-            process.exit()
-        }
-    }).on('data', onNewBlock)
-
-    console.log('flapAuctions: ready')
 }

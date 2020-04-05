@@ -13,7 +13,7 @@ const getters = {
 
 const actions = {
     setFlapAuctionsFromWS({ commit, rootState }, msg) {
-       
+
         let parsed = []
 
         if(msg.auctions) {

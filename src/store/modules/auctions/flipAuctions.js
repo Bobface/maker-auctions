@@ -13,8 +13,6 @@ const getters = {
 
 const actions = {
     setFlipAuctionsFromWS({ commit, rootState, rootGetters }, auctions) {
-
-        console.log(auctions)
         let parsed = []
 
         Object.keys(auctions).forEach(function(currency) {

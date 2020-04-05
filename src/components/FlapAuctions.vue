@@ -7,7 +7,7 @@
       md-description="New auctions will appear here as soon as they are available.">
     </md-empty-state>
 
-    <md-table v-model="getFlapAuctions" class="auction-table-container" md-card v-if="getFlapAuctions.length === 0 && flapAuctionsInitialized">
+    <md-table v-model="getFlapAuctions" class="auction-table-container" md-card v-if="getFlapAuctions.length !== 0 && flapAuctionsInitialized">
       <md-table-row slot="md-table-row" slot-scope="{ item }">
         <md-table-cell md-label="ID" md-sort-by="id" md-numeric>{{ item.id }}</md-table-cell>
         <md-table-cell md-label="PHASE" md-sort-by="phase">{{ item.phase }}</md-table-cell>
