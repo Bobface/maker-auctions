@@ -116,7 +116,6 @@ function flopWSCallback(state) {
 async function main() {
 
     if(process.env.DISCORD_TOKEN || process.env.DISCORD_TEST_TOKEN) {
-        console.log('===================== DISCORD TESTSERVER ENABLED ==========================')
         await discord.start()
     }
 

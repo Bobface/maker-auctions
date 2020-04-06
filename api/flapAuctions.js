@@ -293,7 +293,7 @@ async function updateKicks(blockNum, contract, ignore) {
 
     const promises = []
     const updatedIDs = []
-    for(let i = state.lastID + 1; i <= kicks; i++) {
+    for(let i = parseInt(state.lastID) + 1; i <= kicks; i++) {
         if(ignore && ignore.indexOf(i.toString()) > -1) {
             continue
         }

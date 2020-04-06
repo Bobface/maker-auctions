@@ -286,14 +286,13 @@ async function getLogNoteEvents(fromBlock, toBlock, contract) {
 async function updateKicks(blockNum, contract, ignore) {
 
     const kicks = await contract.methods.kicks().call(undefined, blockNum)
-
     if(kicks === state.lastID) {
         return
     }
 
     const promises = []
     const updatedIDs = []
-    for(let i = state.lastID + 1; i <= kicks; i++) {
+    for(let i = parseInt(state.lastID) + 1; i <= kicks; i++) {
         if(ignore && ignore.indexOf(i.toString()) > -1) {
             continue
         }

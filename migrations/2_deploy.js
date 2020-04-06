@@ -191,12 +191,11 @@ module.exports = async function(deployer, network, accounts) {
             // Normally funds would be taken from the cat.
             // However for testing we kick ourselves, 
             // so we need to allow the flip to access our funds in the vat.
-            mockVat.hope(flip.address)
+            await mockVat.hope(flip.address)
             await token.approve(join.address, uint256max)
             
             // No bid yet
             await join.join(accounts[0], deposit)
-            console.log((await mockVat.gem.call(usdcIlk, accounts[0])).toString())
             await flip.kick(
                 '0x0000000000000000000000000000000000000001', // usr,
                 '0x0000000000000000000000000000000000000002', // gal,
@@ -225,8 +224,8 @@ module.exports = async function(deployer, network, accounts) {
 
         // Start flop auction
         const flopLot = new web3.utils.BN('10').mul(new web3.utils.BN('10').pow(new web3.utils.BN('18'))) // 10 mkr
-        await mockMkr.mockMint(accounts[0], flapLot)
-        await mockFlop.kick('0x0000000000000000000000000000000000000000', flopLot, 0)
+        await mockMkr.mockMint(accounts[0], flopLot)
+        await mockFlop.kick('0x0000000000000000000000000000000000000001', flopLot, 0)
 
         // Truffle does not store the addresses of multiple instances of the same contract.
         // Therefore we store them ourselves.
