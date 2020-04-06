@@ -2,51 +2,60 @@ const BigNumber = require('bignumber.js')
 const moment = require('moment')
 
 const state = {
-    flipAuctions: [],
+    flipAuctions: {
+        ETH: [],
+        BAT: [],
+        USDC: [],
+    },
     flipAuctionsInitialized: false,
 }
 
 const getters = {
-    getFlipAuctions: () => (state.flipAuctions),
-    flipAuctionsInitialized: () => (state.flipAuctionsInitialized),
+    getFlipAuctions: state => token => (state.flipAuctions[token]),
+    getNumTotalFlipAuctions: () => state.flipAuctions.ETH.length + state.flipAuctions.BAT.length + state.flipAuctions.USDC.length,
+    flipAuctionsInitialized: state => (state.flipAuctionsInitialized),
 }
 
 const actions = {
     setFlipAuctionsFromWS({ commit, rootState, rootGetters }, auctions) {
-        let parsed = []
+        const parsed = {
+            'ETH': [],
+            'BAT': [],
+            'USDC': [],
+        }
 
-        Object.keys(auctions).forEach(function(currency) {
-            if(auctions[currency].auctions) {
-                Object.keys(auctions[currency].auctions).forEach(function(id) {
-                    parsed.push(makeAuctionFromRaw(rootState, rootGetters, id, currency, auctions[currency].auctions[id]))
-                });
-            }
-        });
+        Object.keys(auctions).forEach(function(token) {
+            Object.keys(auctions[token].auctions).forEach(function(id) {
+                parsed[token].push(makeAuctionFromRaw(rootState, rootGetters, id, token, auctions[token].auctions[id]))
+            })
+        })
 
         // Check for invalid entries
-        for(let i = 0; i < parsed.length; i++) {
+        Object.keys(parsed).forEach(function(token) {
+            for(let i = 0; i < parsed[token].length; i++) {
 
-            const check = parsed[i]
-            if(check.raw.isValid) {
-                continue
-            }
-            
-            let prev
-            // Do we have a previous valid entry?
-            for(let c = 0; c < state.flipAuctions.length; c++) {
-                if(state.flipAuctions[c].id === check.id) {
-                    prev = state.flipAuctions[c]
-                    break
+                const check = parsed[token][i]
+                if(check.raw.isValid) {
+                    continue
+                }
+                
+                let prev
+                // Do we have a previous valid entry?
+                for(let c = 0; c < state.flipAuctions[token].length; c++) {
+                    if(state.flipAuctions[token][c].id === check.id) {
+                        prev = state.flipAuctions[token][c]
+                        break
+                    }
+                }
+
+                if(prev) {
+                    parsed[token][i] = prev
                 }
             }
 
-            if(prev) {
-                parsed[i] = prev
-            }
-        }
-
-        // desc
-        parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+            // desc
+            parsed[token].sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+        })
 
         commit('setFlipAuctionsInitialized', true)
         commit('setFlipAuctions', parsed)

@@ -7,8 +7,8 @@ const state = {
 }
 
 const getters = {
-    getFlopAuctions: () => (state.flopAuctions),
-    flopAuctionsInitialized: () => (state.flopAuctionsInitialized),
+    getFlopAuctions: (state) => (state.flopAuctions),
+    flopAuctionsInitialized: (state) => (state.flopAuctionsInitialized),
 }
 
 const actions = {

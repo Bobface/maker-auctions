@@ -11,7 +11,7 @@
                     FLIP AUCTIONS
                   </span>
                   <span :class="{'md-caption': true, count: true, pointer: true}">
-                    {{getFlipAuctions.length}}
+                    {{getNumTotalFlipAuctions}}
                   </span>
                 </md-button>
               </center>
@@ -111,7 +111,7 @@ export default {
     FlipAuctionClaimOverlay,
     Footer,
   },
-  computed: mapGetters(['getFlipAuctions', 'getFlapAuctions', 'getFlopAuctions']),
+  computed: mapGetters(['getNumTotalFlipAuctions', 'getFlapAuctions', 'getFlopAuctions']),
 }
 </script>
 

@@ -7,8 +7,8 @@ const state = {
 }
 
 const getters = {
-    getFlapAuctions: () => (state.flapAuctions),
-    flapAuctionsInitialized: () => (state.flapAuctionsInitialized),
+    getFlapAuctions: (state) => (state.flapAuctions),
+    flapAuctionsInitialized: (state) => (state.flapAuctionsInitialized),
 }
 
 const actions = {
