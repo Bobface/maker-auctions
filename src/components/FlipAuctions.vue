@@ -1,6 +1,6 @@
 <template>
   <div style="flex: 1; display: flex; flex-direction: column; background-color: #FFFFFF">
-    <md-toolbar style="background-color: #FFFFFF; " md-elevation="1">
+    <md-toolbar style="background-color: #FFFFFF; display: flex; flex: 0;" md-elevation="1">
       <div style="flex-grow: 1;">
         <center>
           <md-button @click="selectedToken = 'ETH'" :md-ripple="false">
@@ -40,9 +40,7 @@
         </center>
       </div>
     </md-toolbar>
-
-    <div style="display: flex; flex-direction: column; flex: 1;">
-      <div style="flex: 1; overflow-y: hidden;">
+      <!--<div style="flex: 0 0 50%; display: flex; flex-direction: column; max-height: 50%;">
         <md-empty-state
           v-if="getAuctions.length === 0 && flipAuctionsInitialized"
           md-icon="block"
@@ -50,7 +48,49 @@
           md-description="New auctions will appear here as soon as they are available.">
         </md-empty-state>
         
-        <md-table @scroll="console.log('scroll')" style="height: 100%; max-height: 100%;" md-fixed-header v-model="getAuctions" class="auction-table-container" md-card v-if="getFlipAuctions(selectedToken).length !== 0 && flipAuctionsInitialized">
+        <el-table :data="getAuctions" style="width: 100%;" height="100%" >
+          <el-table-column prop="id" label="ID" ></el-table-column>
+          <el-table-column prop="phase" label="PHASE" ></el-table-column>
+          <el-table-column prop="currency" label="CURRENCY" ></el-table-column>
+          <el-table-column prop="amount" label="AMOUNT" ></el-table-column>
+          <el-table-column prop="max" label="MAX BID (DAI)" ></el-table-column>
+          <el-table-column prop="bid" label="BID (DAI)" ></el-table-column>
+          <el-table-column label="BIDDER" >
+            <template slot-scope="scope"><a target="_blank" :href="'https://etherscan.io/address/' + scope.row.raw.guy">{{ getFormattedBidder(scope.row) }}</a></template>
+          </el-table-column>
+          <el-table-column prop="end" label="END" ></el-table-column>
+          <el-table-column label="ACTION" >
+            <template slot-scope="scope">
+              <md-button 
+                v-if="scope.row.raw.phase === 'DAI' || scope.row.raw.phase === 'GEM'" 
+                @click="bidClicked(scope.row)"
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="!web3 || (proxyAddress.toLowerCase() === scope.row.raw.guy.toLowerCase())">
+                  PLACE BID
+              </md-button>
+                
+              <md-button 
+                v-if="scope.row.raw.phase == 'RES'" 
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="true">
+                  RESTART
+              </md-button>
+
+              <md-button 
+                @click="claimClicked(scope.row)"
+                v-if="scope.row.raw.phase == 'FIN'" 
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="!web3 || (proxyAddress.toLowerCase() !== scope.row.raw.guy.toLowerCase())">
+                  CLAIM
+              </md-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <md-table style="min-height: 100%; height: 100%;" md-fixed-header v-model="getAuctions" class="auction-table-container" md-card v-if="getFlipAuctions(selectedToken).length !== 0 && flipAuctionsInitialized">
           <md-table-row slot="md-table-row" slot-scope="{ item }">
             <md-table-cell md-label="ID">{{ item.id }}</md-table-cell>
             <md-table-cell md-label="PHASE">{{ item.phase }}</md-table-cell>
@@ -91,12 +131,32 @@
             </md-table-cell>
           </md-table-row>
         </md-table>
-      </div>
+      </div>-->
 
-      <div style="flex: 1; padding-top: 30px;">
-        <span class="md-title" style="padding-left: 10px; color: #ABABAB !important">HISTORY</span>
-      </div>
+    <div style="flex: 1; display: flex; flex-direction: column;">
+      <div style="overflow-y: auto; height: 50%;">
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE;">
+          <div class="tableField tableHeaderField">ID</div>
+          <div class="tableField tableHeaderField">CURRENCY</div>
+          <div class="tableField tableHeaderField">AMOUNT</div>
+          <div class="tableField tableHeaderField">MAX BID (DAI)</div>
+          <div class="tableField tableHeaderField">BID (DAI)</div>
+          <div class="tableField tableHeaderField">WINNER</div>
+          <div class="tableField tableHeaderField">END</div>
+        </div>
 
+        <div>
+        <div v-for="item in getAuctions.concat(...getAuctions)" :key="item.id" style="display: flex;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
+          <div class="tableField">{{item.id}}</div>
+          <div class="tableField">{{item.currency}}</div>
+          <div class="tableField">{{item.amount}}</div>
+          <div class="tableField">{{item.max}}</div>
+          <div class="tableField">{{item.bid}}</div>
+          <div class="tableField">{{item.bidder}}</div>
+          <div class="tableField">{{item.end}}</div>
+        </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -133,12 +193,15 @@ export default {
     getAuctions: function() {
       return this.getFlipAuctions(this.selectedToken)
     },
-    ...mapGetters(['getFlipAuctions', 'web3', 'proxyAddress', 'flipAuctionsInitialized'])
+    getHistory: function() {
+      return this.getFlipHistory(this.selectedToken)
+    },
+    ...mapGetters(['getFlipAuctions', 'getFlipHistory', 'web3', 'proxyAddress', 'flipAuctionsInitialized'])
   },
 }
 </script>
 
-<style scoped>
+<style>
 a {
   color: #16a085 !important;
 }
@@ -146,6 +209,11 @@ a {
 .auction-table-container .md-content {
   max-height: 100% !important;
   height: 100% !important;
+}
+
+/* Fixes the horizontal scroll bar appearing */
+.auction-table-container .md-table-fixed-header {
+  padding-right: 0px !important;
 }
 
 .pointer {
@@ -165,5 +233,14 @@ a {
   color: #ABABAB !important;
 }
 
+.tableHeaderField {
+  font-weight: bold;
+  color: #909399;
+}
+
+.tableField {
+  flex: 0 0 14.288%;
+  height: 60px;
+}
 
 </style>

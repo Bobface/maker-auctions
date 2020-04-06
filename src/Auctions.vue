@@ -51,11 +51,12 @@
       </div>
       <div class="md-layout-item md-size-25" style="display:flex; flex-direction: column;"><Sidebar /></div>
     </div>
+    <Footer />
     <Web3Overlay />
     <MoveOverlay />
     <FlipAuctionBidOverlay />
     <FlipAuctionClaimOverlay />
-    <Footer />
+    
   </div>
 </template>
 

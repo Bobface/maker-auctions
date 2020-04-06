@@ -7,34 +7,50 @@ const state = {
         BAT: [],
         USDC: [],
     },
+    flipHistory: {
+        ETH: [],
+        BAT: [],
+        USDC: [],
+    },
     flipAuctionsInitialized: false,
 }
 
 const getters = {
     getFlipAuctions: state => token => (state.flipAuctions[token]),
+    getFlipHistory: state => token => (state.flipHistory[token]),
     getNumTotalFlipAuctions: () => state.flipAuctions.ETH.length + state.flipAuctions.BAT.length + state.flipAuctions.USDC.length,
     flipAuctionsInitialized: state => (state.flipAuctionsInitialized),
 }
 
 const actions = {
-    setFlipAuctionsFromWS({ commit, rootState, rootGetters }, auctions) {
+    setFlipAuctionsFromWS({ commit, state, rootState, rootGetters }, auctions) {
         const parsed = {
-            'ETH': [],
-            'BAT': [],
-            'USDC': [],
+            auctions: {
+                'ETH': [],
+                'BAT': [],
+                'USDC': [],
+            },
+            history: {
+                'ETH': [],
+                'BAT': [],
+                'USDC': [],
+            }
+            
         }
 
         Object.keys(auctions).forEach(function(token) {
             Object.keys(auctions[token].auctions).forEach(function(id) {
-                parsed[token].push(makeAuctionFromRaw(rootState, rootGetters, id, token, auctions[token].auctions[id]))
+                parsed.auctions[token].push(makeAuctionFromRaw(rootState, rootGetters, id, token, auctions[token].auctions[id]))
+            })
+            Object.keys(auctions[token].history).forEach(function(id) {
+                parsed.history[token].push(makeHistoryFromRaw(rootState, rootGetters, id, token, auctions[token].history[id]))
             })
         })
 
-        // Check for invalid entries
-        Object.keys(parsed).forEach(function(token) {
-            for(let i = 0; i < parsed[token].length; i++) {
+        Object.keys(parsed.auctions).forEach(function(token) {
+            for(let i = 0; i < parsed.auctions[token].length; i++) {
 
-                const check = parsed[token][i]
+                const check = parsed.auctions[token][i]
                 if(check.raw.isValid) {
                     continue
                 }
@@ -49,21 +65,46 @@ const actions = {
                 }
 
                 if(prev) {
-                    parsed[token][i] = prev
+                    parsed.auctions[token][i] = prev
                 }
             }
 
-            // desc
-            parsed[token].sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+            parsed.auctions[token].sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
         })
 
+        Object.keys(parsed.history).forEach(function(token) {
+            const append = []
+            for(let i = 0; i < state.flipHistory[token].length; i++) {
+                let found = false
+                for(let c = 0; c < parsed.history[token].length; c++) {
+                    if(state.flipHistory[token][i].id === parsed.history[token][c].id) {
+                        found = true
+                        break
+                    }
+                }
+
+                if(found) {
+                    continue
+                }
+
+                append.push(state.flipHistory[token][i])
+            }
+
+            parsed.history[token] = parsed.history[token].concat(...append)
+            parsed.history[token].sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+        })
+
+        console.log(parsed.history)
+
         commit('setFlipAuctionsInitialized', true)
-        commit('setFlipAuctions', parsed)
+        commit('setFlipAuctions', parsed.auctions)
+        commit('setFlipHistory', parsed.history)
     }
 }
 
 const mutations = {
     setFlipAuctions: (state, auctions) => (state.flipAuctions = auctions),
+    setFlipHistory: (state, history) => (state.flipHistory = history),
     setFlipAuctionsInitialized: (state, b) => (state.flipAuctionsInitialized = b),
 }
 
@@ -110,6 +151,29 @@ function makeAuctionFromRaw(rootState, rootGetters, id, currency, raw) {
             tic: raw.tic,
             end: raw.end,
             isValid: raw.isValid,
+        },
+    }
+}
+
+function makeHistoryFromRaw(rootState, rootGetters, id, currency, raw) {
+
+    const displayDecimals = rootGetters.displayDecimalsOfToken(currency)
+    const amount = BigNumber(raw.lot).div(BigNumber(10).pow(18)).toFixed(displayDecimals)
+
+    return {
+        id: id,
+        currency: currency,
+        amount: amount,
+        max: BigNumber(raw.tab).div(BigNumber(10).pow(45)).toFixed(2),
+        bid: BigNumber(raw.bid).div(BigNumber(10).pow(45)).toFixed(2),
+        bidder: raw.guy.substring(0, 6) + '...' + raw.guy.substring(raw.guy.length - 4),
+        end: moment.unix(parseInt(raw.end)).fromNow(),
+        raw: {
+            lot: BigNumber(raw.lot),
+            bid: BigNumber(raw.bid),
+            tab: BigNumber(raw.tab),
+            guy: raw.guy,
+            end: raw.end,
         },
     }
 }
