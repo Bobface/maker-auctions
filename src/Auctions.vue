@@ -1,9 +1,9 @@
 <template>
   <div style="height: 100%; display:flex; flex-direction: column;">
     <Header selected="auctions" />
-    <div class="md-layout" style="flex: 1;">
-      <div class="md-layout-item md-size-75" style="margin: 5px 0 5px 0; padding: 0 5px 0 5px; display:flex; flex-direction: column;">
-          <md-toolbar style="background-color: #FFFFFF; " md-elevation="1">
+    <div style="flex: 1; display: flex; min-height: 0px;">
+      <div style="flex: 0 0 75%; display:flex; flex-direction: column;">
+          <div style="display: flex; background-color: #FFFFFF; height: 60px; align-items: center;" md-elevation="1">
             <div style="flex-grow: 1;">
               <center>
                 <md-button @click="flipClicked" :md-ripple="false">
@@ -42,14 +42,14 @@
                 </md-button>
               </center>
             </div>
-        </md-toolbar>
+        </div>
         <md-divider />
         <md-divider />
         <FlipAuctions v-if="flip" />
         <FlapAuctions v-if="flap" />
         <FlopAuctions v-if="flop" />
       </div>
-      <div class="md-layout-item md-size-25" style="display:flex; flex-direction: column;"><Sidebar /></div>
+      <div style="flex: 0 0 25%;"><Sidebar /></div>
     </div>
     <Footer />
     <Web3Overlay />

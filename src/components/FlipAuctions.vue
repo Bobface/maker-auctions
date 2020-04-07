@@ -1,6 +1,6 @@
 <template>
-  <div style="flex: 1; display: flex; flex-direction: column; background-color: #FFFFFF">
-    <md-toolbar style="background-color: #FFFFFF; display: flex; flex: 0;" md-elevation="1">
+  <div style="flex: 1; display: flex; flex-direction: column; background-color: #FFFFFF; min-height: 0px;">
+    <div style="height: 40px; align-items: center; background-color: #FFFFFF; display: flex;">
       <div style="flex-grow: 1;">
         <center>
           <md-button @click="selectedToken = 'ETH'" :md-ripple="false">
@@ -39,8 +39,187 @@
           </md-button>
         </center>
       </div>
-    </md-toolbar>
-      <!--<div style="flex: 0 0 50%; display: flex; flex-direction: column; max-height: 50%;">
+    </div>
+    <md-divider />
+    <md-divider />
+ 
+    <div style="flex: 1; display: flex; flex-direction: column; min-height: 0px; padding: 0 0 10px 0;">
+
+      <div style="flex: 0 0 50%; display: flex; flex-direction: column; min-height: 0px;">
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+          <div class="auctionsTableField tableHeaderField">ID</div>
+          <div class="auctionsTableField tableHeaderField">PHASE</div>
+          <div class="auctionsTableField tableHeaderField">CURRENCY</div>
+          <div class="auctionsTableField tableHeaderField">AMOUNT</div>
+          <div class="auctionsTableField tableHeaderField">MAX BID (DAI)</div>
+          <div class="auctionsTableField tableHeaderField">BID (DAI)</div>
+          <div class="auctionsTableField tableHeaderField">BIDDER</div>
+          <div class="auctionsTableField tableHeaderField">END</div>
+          <div class="auctionsTableField tableHeaderField">ACTION</div>
+        </div>
+
+        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar" v-if="getAuctions.length !== 0 && flipAuctionsInitialized">
+          <div v-for="item in getAuctions" :key="item.id" style="display: flex; height: 40px; align-items: center;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
+            <div class="auctionsTableField">{{item.id}}</div>
+            <div class="auctionsTableField">{{item.phase}}</div>
+            <div class="auctionsTableField">{{item.currency}}</div>
+            <div class="auctionsTableField">{{item.amount}}</div>
+            <div class="auctionsTableField">{{item.max}}</div>
+            <div class="auctionsTableField">{{item.bid}}</div>
+            <div class="auctionsTableField"><a target="_blank" :href="'https://etherscan.io/address/' + item.raw.guy">{{ getFormattedBidder(item) }}</a></div>
+            <div class="auctionsTableField">{{item.end}}</div>
+            <div class="auctionsTableField">
+              <md-button 
+                v-if="item.raw.phase === 'DAI' || item.raw.phase === 'GEM'" 
+                @click="bidClicked(item)"
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="!web3 || (proxyAddress.toLowerCase() === item.raw.guy.toLowerCase())">
+                  PLACE BID
+              </md-button>
+                
+              <md-button 
+                v-if="item.raw.phase == 'RES'" 
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="true">
+                  RESTART
+              </md-button>
+
+              <md-button 
+                @click="claimClicked(item)"
+                v-if="item.raw.phase == 'FIN'" 
+                style="margin: 0;"
+                :class="{'md-dense': true, 'md-accent': true, 'md-raised': true,}" 
+                :disabled="!web3 || (proxyAddress.toLowerCase() !== item.raw.guy.toLowerCase())">
+                  CLAIM
+              </md-button>
+            </div>
+          </div>
+        </md-content>
+      </div>
+
+      <div style="flex: 0 0 50%; display: flex; flex-direction: column; min-height: 0px;">
+        
+        <span style="color: #ABABAB !important; margin: 30px 0 15px 15px;" class="md-title">HISTORY</span>
+        
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+          <div class="historyTableField tableHeaderField">ID</div>
+          <div class="historyTableField tableHeaderField">CURRENCY</div>
+          <div class="historyTableField tableHeaderField">AMOUNT</div>
+          <div class="historyTableField tableHeaderField">MAX BID (DAI)</div>
+          <div class="historyTableField tableHeaderField">BID (DAI)</div>
+          <div class="historyTableField tableHeaderField">WINNER</div>
+          <div class="historyTableField tableHeaderField">END</div>
+        </div>
+
+        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar">
+          <div v-for="item in getHistory" :key="item.id" style="display: flex; height: 40px; align-items: center;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
+            <div class="historyTableField">{{item.id}}</div>
+            <div class="historyTableField">{{item.currency}}</div>
+            <div class="historyTableField">{{item.amount}}</div>
+            <div class="historyTableField">{{item.max}}</div>
+            <div class="historyTableField">{{item.bid}}</div>
+            <div class="historyTableField"><a target="_blank" :href="'https://etherscan.io/address/' + item.raw.guy">{{ getFormattedBidder(item) }}</a></div>
+            <div class="historyTableField">{{item.end}}</div>
+          </div>
+        </md-content>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { mapGetters, mapActions } from 'vuex'
+
+export default {
+  name: 'FlipAuctions',
+  data() {
+    return {
+      selectedToken: 'ETH',
+    }
+  },
+  methods: {
+    bidClicked: function(params) {
+      this.setFlipAuctionParams(params)
+      this.setShowFlipAuctionBidOverlay(true)
+    },
+    claimClicked: function(params) {
+      this.setFlipAuctionParams(params)
+      this.setShowFlipAuctionClaimOverlay(true);
+    },
+    getFormattedBidder: function(params) {
+      if(params.raw.guy.toLowerCase() === this.proxyAddress.toLowerCase()) {
+        return 'YOU'
+      } else {
+        return params.bidder
+      }
+    },
+    ...mapActions(['setFlipAuctionParams', 'setShowFlipAuctionBidOverlay', 'setShowFlipAuctionClaimOverlay']),
+  },
+  computed: {
+    getAuctions: function() {
+      return this.getFlipAuctions(this.selectedToken)
+    },
+    getHistory: function() {
+      return this.getFlipHistory(this.selectedToken)
+    },
+    ...mapGetters(['getFlipAuctions', 'getFlipHistory', 'web3', 'proxyAddress', 'flipAuctionsInitialized'])
+  },
+}
+</script>
+
+<style>
+a {
+  color: #16a085 !important;
+}
+
+.auction-table-container .md-content {
+  max-height: 100% !important;
+  height: 100% !important;
+}
+
+/* Fixes the horizontal scroll bar appearing */
+.auction-table-container .md-table-fixed-header {
+  padding-right: 0px !important;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.count {
+  padding-left: 0px;
+}
+
+.selected {
+  color: #16a085 !important;
+  font-weight: bold !important;
+}
+
+.notSelected {
+  color: #ABABAB !important;
+}
+
+.tableHeaderField {
+  font-weight: bold;
+  color: #909399;
+}
+
+.auctionsTableField {
+  flex: 0 0 11.11%;
+  padding-left: 10px;
+}
+
+
+.historyTableField {
+  flex: 0 0 14.288%;
+  padding-left: 10px;
+}
+
+</style>
+
+     <!--<div style="flex: 0 0 50%; display: flex; flex-direction: column; max-height: 50%;">
         <md-empty-state
           v-if="getAuctions.length === 0 && flipAuctionsInitialized"
           md-icon="block"
@@ -132,115 +311,3 @@
           </md-table-row>
         </md-table>
       </div>-->
-
-    <div style="flex: 1; display: flex; flex-direction: column;">
-      <div style="overflow-y: auto; height: 50%;">
-        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE;">
-          <div class="tableField tableHeaderField">ID</div>
-          <div class="tableField tableHeaderField">CURRENCY</div>
-          <div class="tableField tableHeaderField">AMOUNT</div>
-          <div class="tableField tableHeaderField">MAX BID (DAI)</div>
-          <div class="tableField tableHeaderField">BID (DAI)</div>
-          <div class="tableField tableHeaderField">WINNER</div>
-          <div class="tableField tableHeaderField">END</div>
-        </div>
-
-        <div>
-        <div v-for="item in getAuctions.concat(...getAuctions)" :key="item.id" style="display: flex;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
-          <div class="tableField">{{item.id}}</div>
-          <div class="tableField">{{item.currency}}</div>
-          <div class="tableField">{{item.amount}}</div>
-          <div class="tableField">{{item.max}}</div>
-          <div class="tableField">{{item.bid}}</div>
-          <div class="tableField">{{item.bidder}}</div>
-          <div class="tableField">{{item.end}}</div>
-        </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
-import { mapGetters, mapActions } from 'vuex'
-
-export default {
-  name: 'FlipAuctions',
-  data() {
-    return {
-      selectedToken: 'ETH',
-    }
-  },
-  methods: {
-    bidClicked: function(params) {
-      this.setFlipAuctionParams(params)
-      this.setShowFlipAuctionBidOverlay(true)
-    },
-    claimClicked: function(params) {
-      this.setFlipAuctionParams(params)
-      this.setShowFlipAuctionClaimOverlay(true);
-    },
-    getFormattedBidder: function(params) {
-      if(params.raw.guy.toLowerCase() === this.proxyAddress.toLowerCase()) {
-        return 'YOU'
-      } else {
-        return params.bidder
-      }
-    },
-    ...mapActions(['setFlipAuctionParams', 'setShowFlipAuctionBidOverlay', 'setShowFlipAuctionClaimOverlay']),
-  },
-  computed: {
-    getAuctions: function() {
-      return this.getFlipAuctions(this.selectedToken)
-    },
-    getHistory: function() {
-      return this.getFlipHistory(this.selectedToken)
-    },
-    ...mapGetters(['getFlipAuctions', 'getFlipHistory', 'web3', 'proxyAddress', 'flipAuctionsInitialized'])
-  },
-}
-</script>
-
-<style>
-a {
-  color: #16a085 !important;
-}
-
-.auction-table-container .md-content {
-  max-height: 100% !important;
-  height: 100% !important;
-}
-
-/* Fixes the horizontal scroll bar appearing */
-.auction-table-container .md-table-fixed-header {
-  padding-right: 0px !important;
-}
-
-.pointer {
-  cursor: pointer;
-}
-
-.count {
-  padding-left: 0px;
-}
-
-.selected {
-  color: #16a085 !important;
-  font-weight: bold !important;
-}
-
-.notSelected {
-  color: #ABABAB !important;
-}
-
-.tableHeaderField {
-  font-weight: bold;
-  color: #909399;
-}
-
-.tableField {
-  flex: 0 0 14.288%;
-  height: 60px;
-}
-
-</style>
