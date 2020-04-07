@@ -3,25 +3,31 @@ const moment = require('moment')
 
 const state = {
     flopAuctions: [],
+    flopHistory: [],
     flopAuctionsInitialized: false,
 }
 
 const getters = {
     getFlopAuctions: (state) => (state.flopAuctions),
+    getFlopHistory: (state) => (state.flopHistory),
     flopAuctionsInitialized: (state) => (state.flopAuctionsInitialized),
 }
 
 const actions = {
     setFlopAuctionsFromWS({ commit, rootState }, msg) {
-        let parsed = []
 
-        if(msg.auctions) {
-            Object.keys(msg.auctions).forEach(function(id) {
-                parsed.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
-            });
+        const parsed = {
+            auctions: [],
+            history: [],
         }
 
-        // Check for invalid entries
+        Object.keys(msg.auctions).forEach(function(id) {
+            parsed.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
+        })
+        Object.keys(msg.history).forEach(function(id) {
+            parsed.history.push(makeHistoryFromRaw(id, msg.history[id]))
+        })
+
         for(let i = 0; i < parsed.length; i++) {
 
             const check = parsed[i]
@@ -43,16 +49,37 @@ const actions = {
             }
         }
 
-        // desc
-        parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+        const append = []
+        for(let i = 0; i < state.flopHistory.length; i++) {
+            let found = false
+            for(let c = 0; c < parsed.history.length; c++) {
+                if(state.flopHistory[i].id === parsed.history[c].id) {
+                    found = true
+                    break
+                }
+            }
+
+            if(found) {
+                continue
+            }
+
+            append.push(state.flopHistory[i])
+        }
+
+        parsed.history = parsed.history.concat(...append)
+        parsed.history.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+
+        parsed.auctions.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
 
         commit('setFlopAuctionsInitialized', true)
-        commit('setFlopAuctions', parsed)
+        commit('setFlopAuctions', parsed.auctions)
+        commit('setFlopHistory', parsed.history)
     }
 }
 
 const mutations = {
     setFlopAuctions: (state, auctions) => (state.flopAuctions = auctions),
+    setFlopHistory: (state, history) => (state.flopHistory = history),
     setFlopAuctionsInitialized: (state, b) => (state.flopAuctionsInitialized = b),
 }
 
@@ -94,6 +121,25 @@ function makeAuctionFromRaw(rootState, id, raw) {
             tic: raw.tic,
             end: raw.end,
             isValid: raw.isValid,
+        },
+    }
+}
+
+function makeHistoryFromRaw(id, raw) {
+
+    const amount = BigNumber(raw.lot).div(BigNumber(10).pow(18)).toFixed(4)
+
+    return {
+        id: id,
+        amount: amount,
+        bid: BigNumber(raw.bid).div(BigNumber(10).pow(45)).toFixed(2),
+        bidder: raw.guy.substring(0, 6) + '...' + raw.guy.substring(raw.guy.length - 4),
+        end: moment.unix(parseInt(raw.end)).fromNow(),
+        raw: {
+            lot: BigNumber(raw.lot),
+            bid: BigNumber(raw.bid),
+            guy: raw.guy,
+            end: raw.end,
         },
     }
 }

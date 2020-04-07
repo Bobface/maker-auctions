@@ -58,7 +58,7 @@
           <div class="auctionsTableField tableHeaderField">ACTION</div>
         </div>
 
-        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar" v-if="getAuctions.length !== 0 && flipAuctionsInitialized">
+        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar">
           <div v-for="item in getAuctions" :key="item.id" style="display: flex; height: 40px; align-items: center;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
             <div class="auctionsTableField">{{item.id}}</div>
             <div class="auctionsTableField">{{item.phase}}</div>
@@ -169,19 +169,9 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 a {
   color: #16a085 !important;
-}
-
-.auction-table-container .md-content {
-  max-height: 100% !important;
-  height: 100% !important;
-}
-
-/* Fixes the horizontal scroll bar appearing */
-.auction-table-container .md-table-fixed-header {
-  padding-right: 0px !important;
 }
 
 .pointer {

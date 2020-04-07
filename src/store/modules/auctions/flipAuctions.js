@@ -94,8 +94,6 @@ const actions = {
             parsed.history[token].sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
         })
 
-        console.log(parsed.history)
-
         commit('setFlipAuctionsInitialized', true)
         commit('setFlipAuctions', parsed.auctions)
         commit('setFlipHistory', parsed.history)
