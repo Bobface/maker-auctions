@@ -1,5 +1,5 @@
 <template>
-  <div style="flex: 1; display: flex; flex-direction: column; background-color: #FFFFFF; min-height: 0px;">
+  <div style="flex: 1; display: flex; flex-direction: column; min-height: 0px;">
     <div style="height: 40px; align-items: center; background-color: #FFFFFF; display: flex;">
       <div style="flex-grow: 1;">
         <center>
@@ -46,7 +46,7 @@
     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0px; padding: 0 0 10px 0;">
 
       <div style="flex: 0 0 50%; display: flex; flex-direction: column; min-height: 0px;">
-        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;  background-color: #FFFFFF;">
           <div class="auctionsTableField tableHeaderField">ID</div>
           <div class="auctionsTableField tableHeaderField">PHASE</div>
           <div class="auctionsTableField tableHeaderField">CURRENCY</div>
@@ -103,7 +103,7 @@
         
         <span style="color: #ABABAB !important; margin: 30px 0 15px 15px;" class="md-title">HISTORY</span>
         
-        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;  background-color: #FFFFFF;">
           <div class="historyTableField tableHeaderField">ID</div>
           <div class="historyTableField tableHeaderField">CURRENCY</div>
           <div class="historyTableField tableHeaderField">AMOUNT</div>
@@ -113,7 +113,7 @@
           <div class="historyTableField tableHeaderField">END</div>
         </div>
 
-        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar">
+        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar" @scroll="historyScrolled">
           <div v-for="item in getHistory" :key="item.id" style="display: flex; height: 40px; align-items: center;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
             <div class="historyTableField">{{item.id}}</div>
             <div class="historyTableField">{{item.currency}}</div>
@@ -155,7 +155,12 @@ export default {
         return params.bidder
       }
     },
-    ...mapActions(['setFlipAuctionParams', 'setShowFlipAuctionBidOverlay', 'setShowFlipAuctionClaimOverlay']),
+    historyScrolled: function({ target: { scrollTop, clientHeight, scrollHeight }}) {
+      if (scrollTop + clientHeight >= scrollHeight) {
+        this.requestMoreFlipHistory(this.selectedToken)
+      }
+    },
+    ...mapActions(['setFlipAuctionParams', 'setShowFlipAuctionBidOverlay', 'requestMoreFlipHistory', 'setShowFlipAuctionClaimOverlay']),
   },
   computed: {
     getAuctions: function() {

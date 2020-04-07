@@ -49,7 +49,7 @@
         <FlapAuctions v-if="flap" />
         <FlopAuctions v-if="flop" />
       </div>
-      <div style="flex: 0 0 25%;"><Sidebar /></div>
+      <div style="flex: 0 0 25%; display: flex; flex-direction: column;"><Sidebar /></div>
     </div>
     <Footer />
     <Web3Overlay />

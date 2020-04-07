@@ -7,6 +7,10 @@ const channelIDOfficial = '694997469099982919'
 const token = process.env.DISCORD_TOKEN
 const channelID = channelIDOfficial
 
+if(channelID === channelIDTest) {
+    console.log('--------------- DISCORD TEST SERVER ENABLED')
+}
+
 const client = new Discord.Client();
 let channel
 

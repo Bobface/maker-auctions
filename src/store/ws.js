@@ -10,9 +10,8 @@ function connect() {
         socket = io.connect("wss://maker-auctions.io:8000")
     }
 
-    socket.on('data', (msg) => {
-        store.dispatch('wsMsgReceived', JSON.parse(msg))
-    })
+    store.dispatch('wsSetSocket', socket)
+
 }
 
 exports.init = (st) => {

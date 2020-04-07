@@ -3,14 +3,14 @@ const moment = require('moment')
 
 const state = {
     flipAuctions: {
-        ETH: [],
-        BAT: [],
-        USDC: [],
+        'ETH': [],
+        'BAT': [],
+        'USDC': [],
     },
     flipHistory: {
-        ETH: [],
-        BAT: [],
-        USDC: [],
+        'ETH': [],
+        'BAT': [],
+        'USDC': [],
     },
     flipAuctionsInitialized: false,
 }
@@ -35,7 +35,6 @@ const actions = {
                 'BAT': [],
                 'USDC': [],
             }
-            
         }
 
         Object.keys(auctions).forEach(function(token) {
@@ -97,12 +96,63 @@ const actions = {
         commit('setFlipAuctionsInitialized', true)
         commit('setFlipAuctions', parsed.auctions)
         commit('setFlipHistory', parsed.history)
+    },
+
+    setFlipHistoryFromWS({ commit, state, rootState, rootGetters }, msg) {
+        let parsed = []
+        const token = msg.token
+
+        Object.keys(msg.history).forEach(function(id) {
+            parsed.push(makeHistoryFromRaw(rootState, rootGetters, id, token, msg.history[id]))
+        })
+
+        const append = []
+        for(let i = 0; i < state.flipHistory[token].length; i++) {
+            let found = false
+            for(let c = 0; c < parsed.length; c++) {
+                if(state.flipHistory[token][i].id === parsed[c].id) {
+                    found = true
+                    break
+                }
+            }
+
+            if(found) {
+                continue
+            }
+
+            append.push(state.flipHistory[token][i])
+        }
+
+        parsed = parsed.concat(...append)
+        parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+
+        commit('setFlipHistoryForToken', {token: token, history: parsed})
+    },
+
+    requestMoreFlipHistory({state, dispatch}, token) {
+
+        const len = state.flipHistory[token].length
+        if(len === 0) {
+            return
+        }
+
+        const lastID = state.flipHistory[token][len - 1].id
+        const msg = {
+            topic: 'flipHistory',
+            content: {
+                lastID: lastID,
+                token: token,
+            },
+        }
+
+        dispatch('wsSendMsg', JSON.stringify(msg))
     }
 }
 
 const mutations = {
     setFlipAuctions: (state, auctions) => (state.flipAuctions = auctions),
     setFlipHistory: (state, history) => (state.flipHistory = history),
+    setFlipHistoryForToken: (state, {token, history}) => (state.flipHistory[token] = history),
     setFlipAuctionsInitialized: (state, b) => (state.flipAuctionsInitialized = b),
 }
 

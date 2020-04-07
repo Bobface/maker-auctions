@@ -74,6 +74,54 @@ const actions = {
         commit('setFlopAuctionsInitialized', true)
         commit('setFlopAuctions', parsed.auctions)
         commit('setFlopHistory', parsed.history)
+    },
+
+    setFlopHistoryFromWS({ commit, state }, msg) {
+        let parsed = []
+
+        Object.keys(msg).forEach(function(id) {
+            parsed.push(makeHistoryFromRaw(id, msg[id]))
+        })
+
+        const append = []
+        for(let i = 0; i < state.flopHistory.length; i++) {
+            let found = false
+            for(let c = 0; c < parsed.length; c++) {
+                if(state.flopHistory[i].id === parsed[c].id) {
+                    found = true
+                    break
+                }
+            }
+
+            if(found) {
+                continue
+            }
+
+            append.push(state.flopHistory[i])
+        }
+
+        parsed = parsed.concat(...append)
+        parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+
+        commit('setFlopHistory', parsed)
+    },
+
+    requestMoreFlopHistory({state, dispatch}) {
+
+        const len = state.flopHistory.length
+        if(len === 0) {
+            return
+        }
+
+        const lastID = state.flopHistory[len - 1].id
+        const msg = {
+            topic: 'flopHistory',
+            content: {
+                lastID: lastID,
+            },
+        }
+
+        dispatch('wsSendMsg', JSON.stringify(msg))
     }
 }
 

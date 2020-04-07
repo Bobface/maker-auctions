@@ -14,6 +14,8 @@ const flipAuctions = require('./flipAuctions')
 const flapAuctions = require('./flapAuctions')
 const flopAuctions = require('./flopAuctions')
 
+const historyLength = 20
+
 const flipState = {
     state: {},
     wsMsg: '',
@@ -46,7 +48,7 @@ function flipWSCallback(state) {
         })
         historyKeys.sort(function(a, b) { return b - a });
 
-        for(let i = 0; i < historyKeys.length && i < 10; i++) {
+        for(let i = 0; i < historyKeys.length && i < historyLength; i++) {
             const hKey = historyKeys[i].toString()
             wsObj[token].history[hKey] = flipState.state[token].history[hKey]
         }
@@ -74,7 +76,7 @@ function flapWSCallback(state) {
     })
     historyKeys.sort(function(a, b) { return b - a });
 
-    for(let i = 0; i < historyKeys.length && i < 10; i++) {
+    for(let i = 0; i < historyKeys.length && i < historyLength; i++) {
         const hKey = historyKeys[i].toString()
         wsObj.history[hKey] = flapState.state.history[hKey]
     }
@@ -101,7 +103,7 @@ function flopWSCallback(state) {
     })
     historyKeys.sort(function(a, b) { return b - a });
 
-    for(let i = 0; i < historyKeys.length && i < 10; i++) {
+    for(let i = 0; i < historyKeys.length && i < historyLength; i++) {
         const hKey = historyKeys[i].toString()
         wsObj.history[hKey] = flopState.state.history[hKey]
     }
@@ -143,21 +145,125 @@ async function main() {
     flapAuctions.startParser(latestBlock, flapWSCallback, discord.notifyNewFlapAuction)
     flopAuctions.startParser(latestBlock, flopWSCallback, discord.notifyNewFlopAuction)
 
-    ws.on("connection", (socket) => {
+    ws.on('connection', (socket) => {
         connectedWSClients++
         console.info(`ws: client connected [id=${socket.id}]`);
 
-        socket.on("disconnect", () => {
+        socket.on('disconnect', () => {
             connectedWSClients--
             console.info(`ws: client disconnected [id=${socket.id}]`);
         });
 
+        socket.on('data', (msg) => {
+            console.log(msg)
+            let parsed
+            try {
+                parsed = JSON.parse(msg)
+            } catch(ex) {
+                console.log(ex)
+                return
+            }
+
+            if(!parsed.topic) {
+                console.log('no topic')
+                return
+            }
+
+            if(parsed.topic === 'flipHistory') {
+                if(!parsed.content || !parsed.content.lastID || !parsed.content.token || !flipState.state[parsed.content.token]) {
+                    console.log('invalid request')
+                    return
+                }
+
+                const token = parsed.content.token
+                const lastID = parseInt(parsed.content.lastID)
+
+                const allHistoryKeys = []
+                Object.keys(flipState.state[token].history).forEach(id => {
+                    allHistoryKeys.push(parseInt(id))
+                })
+                allHistoryKeys.sort(function(a, b) { return b - a });
+
+                const history = {}
+                let length = 0
+                for(let i = 0; i < allHistoryKeys.length; i++) {
+                    if(parseInt(allHistoryKeys[i]) < lastID) {
+                        history[allHistoryKeys[i]] = flipState.state[token].history[allHistoryKeys[i]]
+                        length++
+                    }
+
+                    if(length === historyLength) {
+                        break
+                    }
+                }
+
+                socket.emit('data', JSON.stringify({topic: parsed.topic, content: {token: token, history: history}}))
+
+            } else if(parsed.topic === 'flapHistory') {
+                if(!parsed.content || !parsed.content.lastID) {
+                    console.log('invalid request')
+                    return
+                }
+                const lastID = parseInt(parsed.content.lastID)
+
+                const allHistoryKeys = []
+                Object.keys(flapState.state.history).forEach(id => {
+                    allHistoryKeys.push(parseInt(id))
+                })
+                allHistoryKeys.sort(function(a, b) { return b - a });
+
+                const history = {}
+                let length = 0
+                for(let i = 0; i < allHistoryKeys.length; i++) {
+                    if(parseInt(allHistoryKeys[i]) < lastID) {
+                        history[allHistoryKeys[i]] = flapState.state.history[allHistoryKeys[i]]
+                        length++
+                    }
+
+                    if(length === historyLength) {
+                        break
+                    }
+                }
+
+                socket.emit('data', JSON.stringify({topic: parsed.topic, content: history}))
+            } else if(parsed.topic === 'flopHistory') {
+                if(!parsed.content || !parsed.content.lastID) {
+                    console.log('invalid request')
+                    return
+                }
+                const lastID = parseInt(parsed.content.lastID)
+
+                const allHistoryKeys = []
+                Object.keys(flopState.state.history).forEach(id => {
+                    allHistoryKeys.push(parseInt(id))
+                })
+                allHistoryKeys.sort(function(a, b) { return b - a });
+
+                const history = {}
+                let length = 0
+                for(let i = 0; i < allHistoryKeys.length; i++) {
+                    if(parseInt(allHistoryKeys[i]) < lastID) {
+                        history[allHistoryKeys[i]] = flopState.state.history[allHistoryKeys[i]]
+                        length++
+                    }
+
+                    if(length === historyLength) {
+                        break
+                    }
+                }
+
+                socket.emit('data', JSON.stringify({topic: parsed.topic, content: history}))
+            } else {
+                console.log('unknown topic')
+                return
+            }
+
+
+        })
+
         socket.emit('data', flipState.wsMsg)
-        console.log('sent flip')
         socket.emit('data', flapState.wsMsg)
-        console.log('sent flap')
         socket.emit('data', flopState.wsMsg)
-        console.log('sent flop')
     });
     
     setInterval(function() {

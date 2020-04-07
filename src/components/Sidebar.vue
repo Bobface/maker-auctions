@@ -1,5 +1,5 @@
 <template>
-    <MdContent class="sidebarRoot" style="flex: 1; background-color: transparent;">
+    <MdContent class="sidebarRoot" style="flex: 1 0 100%; background-color: transparent;">
         <md-subheader><strong style="color: #16a085">WALLET</strong></md-subheader>
         <center v-if="web3 === undefined">
             <md-button 

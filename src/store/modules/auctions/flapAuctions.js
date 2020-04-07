@@ -76,6 +76,54 @@ const actions = {
         commit('setFlapAuctionsInitialized', true)
         commit('setFlapAuctions', parsed.auctions)
         commit('setFlapHistory', parsed.history)
+    },
+
+    setFlapHistoryFromWS({ commit, state }, msg) {
+        let parsed = []
+
+        Object.keys(msg).forEach(function(id) {
+            parsed.push(makeHistoryFromRaw(id, msg[id]))
+        })
+
+        const append = []
+        for(let i = 0; i < state.flapHistory.length; i++) {
+            let found = false
+            for(let c = 0; c < parsed.length; c++) {
+                if(state.flapHistory[i].id === parsed[c].id) {
+                    found = true
+                    break
+                }
+            }
+
+            if(found) {
+                continue
+            }
+
+            append.push(state.flapHistory[i])
+        }
+
+        parsed = parsed.concat(...append)
+        parsed.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+
+        commit('setFlapHistory', parsed)
+    },
+
+    requestMoreFlapHistory({state, dispatch}) {
+
+        const len = state.flapHistory.length
+        if(len === 0) {
+            return
+        }
+
+        const lastID = state.flapHistory[len - 1].id
+        const msg = {
+            topic: 'flapHistory',
+            content: {
+                lastID: lastID,
+            },
+        }
+
+        dispatch('wsSendMsg', JSON.stringify(msg))
     }
 }
 

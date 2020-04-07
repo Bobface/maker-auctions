@@ -1,10 +1,8 @@
 <template>
-  <div style="flex: 1; display: flex; flex-direction: column; background-color: #FFFFFF">
-
-    <div style="flex: 1; display: flex; flex-direction: column; min-height: 0px; padding: 0 0 10px 0;">
+  <div style="flex: 1; display: flex; flex-direction: column; min-height: 0px; padding: 0 0 10px 0;">
 
       <div style="flex: 0 0 50%; display: flex; flex-direction: column; min-height: 0px;">
-        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE;  background-color: #FFFFFF; align-items: center;">
           <div class="auctionsTableField tableHeaderField">ID</div>
           <div class="auctionsTableField tableHeaderField">AMOUNT (DAI)</div>
           <div class="auctionsTableField tableHeaderField">BID (MKR)</div>
@@ -27,7 +25,7 @@
         
         <span style="color: #ABABAB !important; margin: 30px 0 15px 15px;" class="md-title">HISTORY</span>
         
-        <div style="display: flex; height: 40px; border-bottom: 1px solid #EEEEEE; align-items: center;">
+        <div style="display: flex; height: 40px; background-color: #FFFFFF; border-bottom: 1px solid #EEEEEE; align-items: center;">
           <div class="historyTableField tableHeaderField">ID</div>
           <div class="historyTableField tableHeaderField">AMOUNT (DAI)</div>
           <div class="historyTableField tableHeaderField">BID (MKR)</div>
@@ -35,7 +33,7 @@
           <div class="historyTableField tableHeaderField">END</div>
         </div>
 
-        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar">
+        <md-content style="flex: 1; overflow: auto;" class="md-scrollbar" @scroll="historyScrolled">
           <div v-for="item in getFlapHistory" :key="item.id" style="display: flex; height: 40px; align-items: center;  border-bottom: 1px solid #EEEEEE; min-height: 0px;">
             <div class="historyTableField">{{item.id}}</div>
             <div class="historyTableField">{{item.amount}}</div>
@@ -46,11 +44,10 @@
         </md-content>
       </div>
     </div>
-  </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'FlapAuctions',
@@ -62,6 +59,12 @@ export default {
         return params.bidder
       }
     },
+    historyScrolled: function({ target: { scrollTop, clientHeight, scrollHeight }}) {
+      if (scrollTop + clientHeight >= scrollHeight) {
+        this.requestMoreFlapHistory()
+      }
+    },
+    ...mapActions(['requestMoreFlapHistory'])
   },
   computed: {
     ...mapGetters(['proxyAddress', 'getFlapAuctions', 'getFlapHistory', 'flapAuctionsInitialized']),
