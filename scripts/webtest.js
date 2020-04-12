@@ -123,5 +123,5 @@ truffle.on('exit', function() {
         await mockMkr.methods.mockMint(account, flopLot).send({from: account})
         await mockFlop.methods.kick('0x0000000000000000000000000000000000000001', flopLot, 0).send({from: account})
 
-    }, 10000)//90000)
+    }, 30000)//90000)
 })
