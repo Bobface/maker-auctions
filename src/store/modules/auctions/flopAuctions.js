@@ -22,15 +22,15 @@ const actions = {
         }
 
         Object.keys(msg.auctions).forEach(function(id) {
-            parsed.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
+            parsed.auctions.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
         })
         Object.keys(msg.history).forEach(function(id) {
             parsed.history.push(makeHistoryFromRaw(id, msg.history[id]))
         })
 
-        for(let i = 0; i < parsed.length; i++) {
+        for(let i = 0; i < parsed.auctions.length; i++) {
 
-            const check = parsed[i]
+            const check = parsed.auctions[i]
             if(check.raw.isValid) {
                 continue
             }
@@ -45,7 +45,7 @@ const actions = {
             }
 
             if(prev) {
-                parsed[i] = prev
+                parsed.auctions[i] = prev
             }
         }
 
