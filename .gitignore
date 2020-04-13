@@ -8,6 +8,8 @@ build/webtest/*.json
 api/.env
 api/db/*.json
 
+api-go/.env
+
 .DS_Store
 node_modules
 /dist
