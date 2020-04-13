@@ -7,9 +7,10 @@ const conf = require('./config')
 const BigNumber = require('bignumber.js')
 
 let state
+let savedStates = []
+const blockQueue = []
 let isInitialized = false
 
-let currentBlock = 0
 let parserRunning = false
 
 let wsStateCallback
@@ -45,7 +46,7 @@ function initDB() {
     if(read === undefined) {
         console.log('flipAuctions: empty db, creating default content')
         let content = {
-            lastBlock: conf.isWebtest() ? 0 : 8900000 - 1,
+            lastBlock: conf.isWebtest() ? -1 : 8900000 - 1,
         }
         for(let i = 0; i < flip.flipAddresses.length; i++) {
             content[flip.flipAddresses[i].currency] = {
@@ -76,11 +77,7 @@ function onNewBlock(block, error) {
         process.exit()
     }
 
-    // Handler fires twice per block
-    if(block.number <= currentBlock.number)
-        return
-
-    currentBlock = block
+    blockQueue.push(block)
 
     if(!parserRunning) {
         parserRunning = true
@@ -89,19 +86,36 @@ function onNewBlock(block, error) {
 }
 
 async function parser() {
+    while(blockQueue.length > 0) {
+        const oldState = state
 
-    while(state.lastBlock !== currentBlock.number) {
+        const block = blockQueue[0]
+        let startParseBlock
+        let endParseBlock
+        if(parseInt(block.number) > parseInt(state.lastBlock)) {
+            startParseBlock = parseInt(state.lastBlock) + 1
+            endParseBlock = parseInt(block.number)
+        } else {
+            console.log('flipAuctions: chain reorg detected')
+            startParseBlock = parseInt(block.number)
+            endParseBlock = parseInt(block.number)
+            state = revertState(parseInt(block.number))
+            if(!state) {
+                console.log('could not revert state to ', block.number)
+                process.exit()
+            }
+        }
 
+        
         let hadError = false
-        const block = currentBlock
-        console.log('flipAuctions: parsing block', block.number)
+        console.log('flipAuctions: parsing block', startParseBlock, 'to', endParseBlock)
         const maxParseBlocks = 100000
 
         const eventResults = {}
-        for(let i = state.lastBlock + 1; i <= block.number; i += maxParseBlocks) {
+        for(let i = startParseBlock; i <= endParseBlock; i += maxParseBlocks) {
             let toBlock = i + maxParseBlocks - 1
-            if(toBlock > block.number) {
-                toBlock = block.number
+            if(toBlock > endParseBlock) {
+                toBlock = endParseBlock
             }
 
             const promises = []
@@ -117,13 +131,14 @@ async function parser() {
                     }
                     eventResults[result.token].push(result)
                 } catch(ex) {
-                    console.log('flipAuctions: could not parse block', block, ex.message)
+                    console.log('flipAuctions: could not parse block', startParseBlock, 'to', endParseBlock, ex.message)
                     hadError = true
                 }
             }
         }
 
         if(hadError) {
+            state = oldState
             setTimeout(parser, 2000)
             return
         }
@@ -162,68 +177,47 @@ async function parser() {
                 return deals.indexOf(elem) == pos;
             })
 
-            if(hadKick) {
-                promises.push(
-                    updateKicks(block.number, key, flip.contracts[key], tends.concat(...dents).concat(...dealIDs))
-                    .then(async () => {
-                        const updates = tends.concat(...dents)
-                        let promises = []
-                        for(let c = 0; c < updates.length; c++) {
-                            promises.push(updateAuction(updates[c], block.number, key, flip.contracts[key]))
-                        }
-                        await Promise.all(promises)
+            promises.push(async function() {
+                if(hadKick) {
+                    await updateKicks(parseInt(block.number), key, flip.contracts[key], tends.concat(...dents).concat(...dealIDs))
+                }
 
-                        for(let c = 0; c < deals.length; c += 100) {
-                            if(c >= deals.length) {
-                                c = deals.length - 1
-                            }
+                const updates = tends.concat(...dents)
+                let promises = []
+                for(let c = 0; c < updates.length; c++) {
+                    promises.push(updateAuction(updates[c], parseInt(block.number), key, flip.contracts[key]))
+                }
+                await Promise.all(promises)
 
-                            const promises = []
-                            for(let j = 0; c + j < deals.length && j < 100; j++) {
-                                promises.push(updateAuctionHistory(deals[c + j].id, key))
-                            }
-                            await Promise.all(promises)
-                        }
-                    })
-                )
-            } else {
-                promises.push(
-                    async function() {
-                        const updates = tends.concat(...dents)
-                        let promises = []
-                        for(let c = 0; c < updates.length; c++) {
-                            promises.push(updateAuction(updates[c], block.number, key, flip.contracts[key]))
-                        }
-                        await Promise.all(promises)
+                for(let c = 0; c < deals.length; c += 100) {
+                    if(c >= deals.length) {
+                        c = deals.length - 1
+                    }
 
-                        for(let c = 0; c < deals.length; c += 100) {
-                            if(c >= deals.length) {
-                                c = deals.length - 1
-                            }
-
-                            const promises = []
-                            for(let j = 0; c + j < deals.length && j < 100; j++) {
-                                promises.push(updateAuctionHistory(deals[c + j].id, key))
-                            }
-                            await Promise.all(promises)
-                        }
-                    }()
-                )
-            }
+                    const promises = []
+                    for(let j = 0; c + j < deals.length && j < 100; j++) {
+                        promises.push(updateAuctionHistory(deals[c + j].id, key))
+                    }
+                    await Promise.all(promises)
+                }
+            }())
         })
 
         try {
             await Promise.all(promises)
         } catch(ex) {
             console.log('flipAuctions: could not parse events in block', block, ex.message)
+            state = oldState
             setTimeout(parser, 2000)
             return
         }
         
-
         updateAuctionPhases()
 
+        blockQueue.shift()
         state.lastBlock = block.number
+
+        saveState()
         db.write(state)
         wsStateCallback(state)
         printState()
@@ -247,26 +241,25 @@ async function parseEventsInBlocks(from, to, token, contract) {
 
     while(fromBlock <= to) {
         let events = []
+        let kicks = []
         try {
-            console.log('reading events from', fromBlock, 'to', toBlock)
+            console.log('flipAuctions: reading', token, 'events from', fromBlock, 'to', toBlock)
             events = await contract.getPastEvents('LogNote', {fromBlock: fromBlock, toBlock: toBlock})
-            const kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
-
-            console.log(kicks)
-
-            for(let i = 0; i < kicks.length; i++) {
-                state[token].kicks[kicks[i].returnValues.id] = kicks[i]
-            }
-
-            if(kicks.length > 0) {
-                result.hadKick = true
-            }
-
+            kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
         } catch(ex) {
             let numBlocks = toBlock - fromBlock 
             toBlock = fromBlock + parseInt(numBlocks / 2)
             console.log('flipAuctions:', token,'could not get events from', numBlocks + 1, 'blocks, trying', toBlock - fromBlock + 1, 'blocks')
             continue
+        }
+
+        console.log(kicks)
+        for(let i = 0; i < kicks.length; i++) {
+            state[token].kicks[kicks[i].returnValues.id] = kicks[i]
+        }
+
+        if(kicks.length > 0) {
+            result.hadKick = true
         }
 
         for(let i = 0; i < events.length; i++) {
@@ -320,7 +313,7 @@ async function parseEventsInBlocks(from, to, token, contract) {
 
 async function updateKicks(blockNum, token, contract, ignore) {
 
-    console.log('flipAuctions: updating kicks at block', block)
+    console.log('flipAuctions: updating kicks at block', blockNum)
 
     const kicks = await contract.methods.kicks().call(undefined, blockNum)
 
@@ -430,6 +423,25 @@ async function updateAuctionHistory(id, token) {
     console.log('flipAuctions: updated history for ', token, id)
 }
 
+function revertState(blockNum) {
+    for(let i = 0; i < savedStates.length; i++) {
+        if(parseInt(savedStates[i].lastBlock) == parseInt(blockNum) - 1) {
+            return savedStates[i]
+        }
+    }
+
+    return undefined
+}
+
+function saveState() {
+    const last = parseInt(state.lastBlock)
+    savedStates = savedStates.filter(function(elem, pos) {
+        const savedLast = parseInt(elem.lastBlock)
+        return (savedLast < last && savedLast + 10 >= last)
+    })
+    savedStates.push(state)
+}
+
 function updateAuctionPhases() {
     Object.keys(flip.contracts).forEach(token => {
         Object.keys(state[token].auctions).forEach(id => {
@@ -536,7 +548,7 @@ function printState() {
 
     tableData = {
         timestamp: parseInt(Date.now() / 1000),
-        block: currentBlock.number,
+        block: state.lastBlock,
         auctions: numAuctions,
     }
     console.table([tableData])
