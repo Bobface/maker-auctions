@@ -92,6 +92,7 @@ async function parser() {
 
     while(state.lastBlock !== currentBlock.number) {
 
+        let hadError = false
         const block = currentBlock
         console.log('flapAuctions: parsing block', block.number)
         const maxParseBlocks = 100000
@@ -103,7 +104,17 @@ async function parser() {
                 toBlock = block.number
             }
 
-            eventResults.push(await parseEventsInBlocks(i, toBlock, flap.contractHTTP))
+            try {
+                eventResults.push(await parseEventsInBlocks(i, toBlock, flap.contractHTTP))
+            } catch(ex) {
+                console.log('flapAuctions: could not parse block', block, ex.message)
+                hadError = true
+            }
+        }
+
+        if(hadError) {
+            setTimeout(parser, 2000)
+            return
         }
 
         const promises = []
@@ -180,7 +191,14 @@ async function parser() {
             )
         }
 
-        await Promise.all(promises)
+        try {
+            await Promise.all(promises)
+        } catch(ex) {
+            console.log('flapAuctions: could not parse events in block', block, ex.message)
+            setTimeout(parser, 2000)
+            return
+        }
+        
         updateAuctionPhases()
         state.lastBlock = block.number
         db.write(state)

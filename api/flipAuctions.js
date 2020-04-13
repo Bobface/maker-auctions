@@ -97,6 +97,7 @@ async function parser() {
 
     while(state.lastBlock !== currentBlock.number) {
 
+        let hadError = false
         const block = currentBlock
         console.log('flipAuctions: parsing block', block.number)
         const maxParseBlocks = 100000
@@ -114,12 +115,22 @@ async function parser() {
             })
 
             for(let j = 0; j < promises.length; j++) {
-                const result = await promises[j]
-                if(!eventResults[result.token]) {
-                    eventResults[result.token] = []
+                try {
+                    const result = await promises[j]
+                    if(!eventResults[result.token]) {
+                        eventResults[result.token] = []
+                    }
+                    eventResults[result.token].push(result)
+                } catch(ex) {
+                    console.log('flipAuctions: could not parse block', block, ex.message)
+                    hadError = true
                 }
-                eventResults[result.token].push(await promises[j])
             }
+        }
+
+        if(hadError) {
+            setTimeout(parser, 2000)
+            return
         }
 
         const promises = []
@@ -206,7 +217,14 @@ async function parser() {
             }
         })
 
-        await Promise.all(promises)
+        try {
+            await Promise.all(promises)
+        } catch(ex) {
+            console.log('flipAuctions: could not parse events in block', block, ex.message)
+            setTimeout(parser, 2000)
+            return
+        }
+        
 
         updateAuctionPhases()
 
@@ -440,7 +458,7 @@ function makeAuction(lot, bid, tab, usr, gal, guy, tic, end, isValid) {
     return auction
 }
 
-function makeAuctionPhase(auction) {
+function makeAuctionPhase(auction) {  
     if(!auction.isValid)
         return 'INV'
 
