@@ -9,6 +9,7 @@ api/.env
 api/db/*.json
 
 api-go/.env
+api-go/db/files/*.json
 
 .DS_Store
 node_modules
