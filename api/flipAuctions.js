@@ -254,7 +254,11 @@ async function parseEventsInBlocks(from, to, token, contract) {
             continue
         }
 
+        console.log('events')
+        console.log(events)
+        console.log('kicks')
         console.log(kicks)
+        
         for(let i = 0; i < kicks.length; i++) {
             state[token].kicks[kicks[i].returnValues.id] = kicks[i]
         }
