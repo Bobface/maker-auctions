@@ -438,7 +438,6 @@ function saveState() {
     const last = parseInt(state.lastBlock)
     savedStates = savedStates.filter(function(elem, pos) {
         const savedLast = parseInt(elem.lastBlock)
-        console.log(last, savedLast, savedLast < last && savedLast + 10 >= last)
         return (savedLast < last && savedLast + 10 >= last)
     })
     savedStates.push({ ... state })
