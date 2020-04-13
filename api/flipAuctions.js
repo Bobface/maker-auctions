@@ -96,7 +96,7 @@ async function parser() {
             startParseBlock = parseInt(state.lastBlock) + 1
             endParseBlock = parseInt(block.number)
         } else {
-            console.log('flipAuctions: chain reorg detected')
+            console.log('flipAuctions: chain reorg detected', block.number, state.lastBlock)
             startParseBlock = parseInt(block.number)
             endParseBlock = parseInt(block.number)
             state = revertState(parseInt(block.number))
