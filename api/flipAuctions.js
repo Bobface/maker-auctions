@@ -87,7 +87,7 @@ function onNewBlock(block, error) {
 
 async function parser() {
     while(blockQueue.length > 0) {
-        const oldState = state
+        const oldState = { ... state }
 
         const block = blockQueue[0]
         let startParseBlock
@@ -138,7 +138,7 @@ async function parser() {
         }
 
         if(hadError) {
-            state = oldState
+            state = { ... oldState }
             setTimeout(parser, 2000)
             return
         }
@@ -207,7 +207,7 @@ async function parser() {
             await Promise.all(promises)
         } catch(ex) {
             console.log('flipAuctions: could not parse events in block', block, ex.message)
-            state = oldState
+            state = { ... oldState }
             setTimeout(parser, 2000)
             return
         }
@@ -426,7 +426,7 @@ async function updateAuctionHistory(id, token) {
 function revertState(blockNum) {
     for(let i = 0; i < savedStates.length; i++) {
         if(parseInt(savedStates[i].lastBlock) == parseInt(blockNum) - 1) {
-            return savedStates[i]
+            return { ... savedStates[i] }
         }
     }
 
@@ -437,9 +437,10 @@ function saveState() {
     const last = parseInt(state.lastBlock)
     savedStates = savedStates.filter(function(elem, pos) {
         const savedLast = parseInt(elem.lastBlock)
+        console.log(last, savedLast, savedLast < last && savedLast + 10 >= last)
         return (savedLast < last && savedLast + 10 >= last)
     })
-    savedStates.push(state)
+    savedStates.push({ ... state })
 }
 
 function updateAuctionPhases() {
