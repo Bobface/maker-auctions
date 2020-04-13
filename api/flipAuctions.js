@@ -253,6 +253,7 @@ async function parseEventsInBlocks(from, to, token, contract) {
     while(fromBlock <= to) {
         let events = []
         try {
+            console.log('reading events from', fromBlock, 'to', toBlock)
             events = await contract.getPastEvents('LogNote', {fromBlock: fromBlock, toBlock: toBlock})
             const kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
 
@@ -324,11 +325,15 @@ async function parseEventsInBlocks(from, to, token, contract) {
 
 async function updateKicks(blockNum, token, contract, ignore) {
 
+    console.log('flipAuctions: updating kicks at block', block)
+
     const kicks = await contract.methods.kicks().call(undefined, blockNum)
 
     if(kicks === state[token].lastID) {
         return
     }
+
+    console.log('flipAuctions: have new kicks:', kicks)
 
     const promises = []
     const updatedIDs = []
