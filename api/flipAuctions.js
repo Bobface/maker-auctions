@@ -256,6 +256,8 @@ async function parseEventsInBlocks(from, to, token, contract) {
             events = await contract.getPastEvents('LogNote', {fromBlock: fromBlock, toBlock: toBlock})
             const kicks = await contract.getPastEvents('Kick', {fromBlock: fromBlock, toBlock: toBlock})
 
+            console.log(kicks)
+
             for(let i = 0; i < kicks.length; i++) {
                 state[token].kicks[kicks[i].returnValues.id] = kicks[i]
             }
@@ -382,9 +384,8 @@ async function updateAuctionHistory(id, token) {
     const bid = lastBidEventData.slice(256, 320)
 
     const kickEvent = state[token].kicks[id]
-    const kickBlock = kickEvent.blockNumber
-    const tab = new web3.utils.BN(kickEvent.returnValues.tab)
-
+    const kickBlock = kickEvent ? kickEvent.blockNumber : 1
+    const tab = kickEvent ? new web3.utils.BN(kickEvent.returnValues.tab) : new web3.utils.BN('0')
     let ttlBlock = 0
     Object.keys(state[token].ttls).forEach(key => {
         if(key > ttlBlock && key <= lastBidBlock) {
