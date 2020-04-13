@@ -4,8 +4,8 @@ const Discord = require('discord.js');
 const channelIDTest = '694986374884884520'
 const channelIDOfficial = '694997469099982919'
 
-const token = process.env.DISCORD_TOKEN
-const channelID = channelIDOfficial
+const token = process.env.DISCORD_TEST_TOKEN
+const channelID = channelIDTest
 
 if(channelID === channelIDTest) {
     console.log('--------------- DISCORD TEST SERVER ENABLED')

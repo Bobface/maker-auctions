@@ -35,12 +35,7 @@ exports.startParser = async (startBlock, wsCallback, newAuctionCallback) => {
 
     // Subscribe to new blocks
     let blockSubscription = web3.eth.subscribe('newBlockHeaders')
-    blockSubscription.subscribe((error, result) => {
-        if (error) {
-            console.log('flipAuctions: Error subscribing to event', error)
-            process.exit()
-        }
-    }).on('data', onNewBlock)
+    blockSubscription.on('data', onNewBlock)
 
     console.log('flipAuctions: ready')
 }
@@ -73,6 +68,9 @@ function initDB() {
 }
 
 function onNewBlock(block, error) {
+
+    console.log('flipAuctions: onNewBlock: new block', block.number)
+
     if(error) {
         console.log('flipAuctions: onNewBlock:', error.message)
         process.exit()
@@ -81,9 +79,6 @@ function onNewBlock(block, error) {
     // Handler fires twice per block
     if(block.number <= currentBlock.number)
         return
-
-    if(block.number % 1000 == 0 || currentBlock.number == 0)
-        console.log('flipAuctions: onNewBlock: New block', block.number)
 
     currentBlock = block
 

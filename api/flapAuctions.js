@@ -33,13 +33,9 @@ exports.startParser = async (startBlock, wsCallback, newAuctionCallback) => {
     onNewBlock({number: startBlock}, undefined)
 
     // Subscribe to new blocks
+    // Subscribe to new blocks
     let blockSubscription = web3.eth.subscribe('newBlockHeaders')
-    blockSubscription.subscribe((error, result) => {
-        if (error) {
-            console.log('flapAuctions: Error subscribing to event', error)
-            process.exit()
-        }
-    }).on('data', onNewBlock)
+    blockSubscription.on('data', onNewBlock)
 
     console.log('flapAuctions: ready')
 }

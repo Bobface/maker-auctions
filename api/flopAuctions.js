@@ -34,12 +34,7 @@ exports.startParser = async (startBlock, wsCallback, newAuctionCallback) => {
 
     // Subscribe to new blocks
     let blockSubscription = web3.eth.subscribe('newBlockHeaders')
-    blockSubscription.subscribe((error, result) => {
-        if (error) {
-            console.log('flopAuctions: Error subscribing to event', error)
-            process.exit()
-        }
-    }).on('data', onNewBlock)
+    blockSubscription.on('data', onNewBlock)
 
     console.log('flopAuctions: ready')
 }
