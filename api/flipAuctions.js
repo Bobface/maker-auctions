@@ -102,6 +102,7 @@ async function parser() {
             state = revertState(parseInt(block.number))
             if(!state) {
                 console.log('could not revert state to ', block.number)
+                console.log(savedStates)
                 process.exit()
             }
         }
