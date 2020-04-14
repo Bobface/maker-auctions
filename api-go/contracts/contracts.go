@@ -1,37 +1,75 @@
 package contracts
 
 import (
+	"strings"
+
 	"../eth"
 	"../global"
 	"./flapper"
 	"./flipper"
 	"./flopper"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/inconshreveable/log15"
 )
 
-// Contracts defines contracts used by the backend
+// FlipContract defines a flip contract
+type FlipContract struct {
+	Address      common.Address
+	ABI          abi.ABI
+	ContractHTTP *flipper.Flipper
+	ContractWS   *flipper.Flipper
+}
+
+// FlapContract defines a flap contract
+type FlapContract struct {
+	Address      common.Address
+	ABI          abi.ABI
+	ContractHTTP *flapper.Flapper
+	ContractWS   *flapper.Flapper
+}
+
+// FlopContract defines a flop contract
+type FlopContract struct {
+	Address      common.Address
+	ABI          abi.ABI
+	ContractHTTP *flopper.Flopper
+	ContractWS   *flopper.Flopper
+}
+
+// Contracts defines the contracts used by the backend
 type Contracts struct {
-	ETHFlip   *flipper.Flipper
-	ETHFlipWS *flipper.Flipper
+	ETHFlip  FlipContract
+	BATFlip  FlipContract
+	USDCFlip FlipContract
 
-	BATFlip   *flipper.Flipper
-	BATFlipWS *flipper.Flipper
+	Flap FlapContract
 
-	USDCFlip   *flipper.Flipper
-	USDCFlipWS *flipper.Flipper
-
-	Flap   *flapper.Flapper
-	FlapWS *flapper.Flapper
-
-	Flop   *flopper.Flopper
-	FlopWS *flopper.Flopper
+	Flop FlopContract
 }
 
 // New returns new contracts
 func New() Contracts {
 
 	log := log15.New("module", "contracts")
+
+	flipperABI, err := abi.JSON(strings.NewReader(string(flipper.FlipperABI)))
+	if err != nil {
+		log.Crit("failed to load flip abi", "err", err.Error())
+		panic("")
+	}
+
+	flapperABI, err := abi.JSON(strings.NewReader(string(flapper.FlapperABI)))
+	if err != nil {
+		log.Crit("failed to load flap abi", "err", err.Error())
+		panic("")
+	}
+
+	flopperABI, err := abi.JSON(strings.NewReader(string(flopper.FlopperABI)))
+	if err != nil {
+		log.Crit("failed to load flop abi", "err", err.Error())
+		panic("")
+	}
 
 	var ethFlipAddr common.Address
 	var batFlipAddr common.Address
@@ -49,19 +87,18 @@ func New() Contracts {
 		flopAddr = common.HexToAddress("0x4D95A049d5B0b7d32058cd3F2163015747522e99")
 	}
 
-	var err error
-	var ethFlip *flipper.Flipper
+	var ethFlipHTTP *flipper.Flipper
 	var ethFlipWS *flipper.Flipper
-	var batFlip *flipper.Flipper
+	var batFlipHTTP *flipper.Flipper
 	var batFlipWS *flipper.Flipper
-	var usdcFlip *flipper.Flipper
+	var usdcFlipHTTP *flipper.Flipper
 	var usdcFlipWS *flipper.Flipper
-	var flap *flapper.Flapper
+	var flapHTTP *flapper.Flapper
 	var flapWS *flapper.Flapper
-	var flop *flopper.Flopper
+	var flopHTTP *flopper.Flopper
 	var flopWS *flopper.Flopper
 
-	ethFlip, err = flipper.NewFlipper(ethFlipAddr, eth.GetHTTPClient())
+	ethFlipHTTP, err = flipper.NewFlipper(ethFlipAddr, eth.GetHTTPClient())
 	if err != nil {
 		log.Crit("failed to create eth flip http contract", "err", err.Error())
 		panic("")
@@ -72,7 +109,7 @@ func New() Contracts {
 		panic("")
 	}
 
-	batFlip, err = flipper.NewFlipper(batFlipAddr, eth.GetHTTPClient())
+	batFlipHTTP, err = flipper.NewFlipper(batFlipAddr, eth.GetHTTPClient())
 	if err != nil {
 		log.Crit("failed to create bat flip http contract", "err", err.Error())
 		panic("")
@@ -83,7 +120,7 @@ func New() Contracts {
 		panic("")
 	}
 
-	usdcFlip, err = flipper.NewFlipper(usdcFlipAddr, eth.GetHTTPClient())
+	usdcFlipHTTP, err = flipper.NewFlipper(usdcFlipAddr, eth.GetHTTPClient())
 	if err != nil {
 		log.Crit("failed to create usdc flip http contract", "err", err.Error())
 		panic("")
@@ -94,7 +131,7 @@ func New() Contracts {
 		panic("")
 	}
 
-	flap, err = flapper.NewFlapper(flapAddr, eth.GetHTTPClient())
+	flapHTTP, err = flapper.NewFlapper(flapAddr, eth.GetHTTPClient())
 	if err != nil {
 		log.Crit("failed to create flap http contract", "err", err.Error())
 		panic("")
@@ -105,7 +142,7 @@ func New() Contracts {
 		panic("")
 	}
 
-	flop, err = flopper.NewFlopper(flopAddr, eth.GetHTTPClient())
+	flopHTTP, err = flopper.NewFlopper(flopAddr, eth.GetHTTPClient())
 	if err != nil {
 		log.Crit("failed to create flop http contract", "err", err.Error())
 		panic("")
@@ -119,17 +156,37 @@ func New() Contracts {
 	log.Info("loaded contracts")
 
 	return Contracts{
-		ETHFlip:    ethFlip,
-		ETHFlipWS:  ethFlipWS,
-		BATFlip:    batFlip,
-		BATFlipWS:  batFlipWS,
-		USDCFlip:   usdcFlip,
-		USDCFlipWS: usdcFlipWS,
+		ETHFlip: FlipContract{
+			Address:      ethFlipAddr,
+			ABI:          flipperABI,
+			ContractHTTP: ethFlipHTTP,
+			ContractWS:   ethFlipWS,
+		},
+		BATFlip: FlipContract{
+			Address:      batFlipAddr,
+			ABI:          flipperABI,
+			ContractHTTP: batFlipHTTP,
+			ContractWS:   batFlipWS,
+		},
+		USDCFlip: FlipContract{
+			Address:      usdcFlipAddr,
+			ABI:          flipperABI,
+			ContractHTTP: usdcFlipHTTP,
+			ContractWS:   usdcFlipWS,
+		},
 
-		Flap:   flap,
-		FlapWS: flapWS,
+		Flap: FlapContract{
+			Address:      flapAddr,
+			ABI:          flapperABI,
+			ContractHTTP: flapHTTP,
+			ContractWS:   flapWS,
+		},
 
-		Flop:   flop,
-		FlopWS: flopWS,
+		Flop: FlopContract{
+			Address:      flopAddr,
+			ABI:          flopperABI,
+			ContractHTTP: flopHTTP,
+			ContractWS:   flopWS,
+		},
 	}
 }

@@ -45,11 +45,13 @@ func Init() {
 	httpClient, err = ethclient.Dial(http)
 	if err != nil {
 		log.Crit("failed to connect to http eth provider", "err", err.Error())
+		panic("")
 	}
 
 	wsClient, err = ethclient.Dial(ws)
 	if err != nil {
 		log.Crit("failed to connect to ws eth provider", "err", err.Error())
+		panic("")
 	}
 
 	log.Info("clients connected")
