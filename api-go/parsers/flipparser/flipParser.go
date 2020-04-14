@@ -15,6 +15,7 @@ import (
 	"../../contracts"
 	"../../eth"
 	"../../global"
+	"../../util"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -65,10 +66,34 @@ type tauEvent struct {
 	TxIndex  uint64 `json:"txIndex"`
 }
 
+type auction struct {
+	ID    uint64 `json:"id"`
+	Phase string `json:"phase"`
+	Lot   string `json:"lot"`
+	Bid   string `json:"bid"`
+	Tab   string `json:"tab"`
+	Guy   string `json:"guy"`
+	Tic   uint64 `json:"tic"`
+	End   uint64 `json:"end"`
+	Usr   string `json:"usr"`
+	Gal   string `json:"gal"`
+}
+
+type history struct {
+	ID  uint64 `json:"id"`
+	Lot string `json:"lot"`
+	Bid string `json:"bid"`
+	Tab string `json:"tab"`
+	Guy string `json:"guy"`
+	End uint64 `json:"end"`
+}
+
 // Fields must be exported to be deep-copyable
 type state struct {
-	LastID    uint64 `json:"lastID"`
 	LastBlock uint64 `json:"lastBlock"`
+
+	Auctions  map[uint64]auction `json:"auctions"`
+	Histories map[uint64]history `json:"histories"`
 
 	KickEvents    map[uint64]kickEvent `json:"kickEvents"`
 	LastBidEvents map[uint64]bidEvent  `json:"bidEvents"`
@@ -95,9 +120,6 @@ func New(
 	startBlockNum *big.Int,
 	contract contracts.FlipContract,
 ) *FlipParser {
-
-	// Init db
-
 	return &FlipParser{
 		log:           log15.New("module", fmt.Sprintf("flip/%s", token)),
 		db:            db.New(fmt.Sprintf("flip_%s", token)),
@@ -116,13 +138,27 @@ func (p *FlipParser) Run() {
 	if err != nil {
 		p.log.Info("could not parse db. creating default content")
 		p.state = state{
-			LastID: 0,
+
+			Auctions:  make(map[uint64]auction),
+			Histories: make(map[uint64]history),
 
 			KickEvents:    make(map[uint64]kickEvent),
 			LastBidEvents: make(map[uint64]bidEvent),
 
-			TTLs: []ttlEvent{},
-			TAUs: []tauEvent{},
+			TTLs: []ttlEvent{
+				ttlEvent{
+					TTL:      "10800",
+					BlockNum: 0,
+					TxIndex:  0,
+				},
+			},
+			TAUs: []tauEvent{
+				tauEvent{
+					TAU:      "172800",
+					BlockNum: 0,
+					TxIndex:  0,
+				},
+			},
 		}
 		if global.IsWebtest() {
 			p.state.LastBlock = 0
@@ -178,17 +214,10 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 		return
 	}
 
-	// TODO: Updates, save state etc.
-
+	p.updateAuctionPhases()
 	p.state.LastBlock = endParseBlock
 	p.saveState()
-	/*updateAuctionPhases()
-
-	  blockQueue.shift()
-	  state.lastBlock = block.number
-
-	  saveState()
-	  db.write(state)
+	/*
 	  wsStateCallback(state)
 	  printState()
 	  isInitialized = true*/
@@ -245,20 +274,17 @@ func (p *FlipParser) parseEventsInBlocks(startBlock uint64, endBlock uint64) err
 		}
 	}
 
-	// handle events
-	kicks := []uint64{}
-	tends := []uint64{}
-	dents := []uint64{}
+	updates := []uint64{}
 	deals := []uint64{}
 	for _, ev := range events {
 		topic := hex.EncodeToString(ev.Topics[0].Bytes())[0:8]
 
 		if strings.Compare(topic, topicKick) == 0 {
-			kicks = append(kicks, p.parseKickEvent(ev))
+			updates = append(updates, p.parseKickEvent(ev))
 		} else if strings.Compare(topic, topicTend) == 0 {
-			tends = append(tends, p.parseTendOrDentEvent(ev))
+			updates = append(updates, p.parseTendOrDentEvent(ev))
 		} else if strings.Compare(topic, topicDent) == 0 {
-			dents = append(dents, p.parseTendOrDentEvent(ev))
+			updates = append(updates, p.parseTendOrDentEvent(ev))
 		} else if strings.Compare(topic, topicDeal) == 0 {
 			deals = append(deals, p.parseDealEvent(ev))
 		} else if strings.Compare(topic, topicFile) == 0 {
@@ -266,14 +292,160 @@ func (p *FlipParser) parseEventsInBlocks(startBlock uint64, endBlock uint64) err
 		}
 	}
 
-	// CONT HERE
+	updates = util.FilterUint64(updates, func(index int, elem uint64) bool {
+		return util.IndexOfUint64(updates, elem) == index && util.IndexOfUint64(deals, elem) == -1
+	})
+
+	deals = util.FilterUint64(deals, func(index int, elem uint64) bool {
+		return util.IndexOfUint64(deals, elem) == index
+	})
+
+	err = p.updateAuctions(updates)
+	if err != nil {
+		return err
+	}
+
+	err = p.makeAuctionsHistory(deals)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *FlipParser) updateAuctions(ids []uint64) error {
+	maxUpdates := 100
+	for i := 0; i < len(ids); i += maxUpdates {
+
+		ch := make(chan error)
+		for j := 0; j < maxUpdates && i+j < len(ids); j++ {
+			id := ids[i+j]
+			go func() { ch <- p.updateAuction(uint64(id)) }()
+		}
+
+		var err error = nil
+		for j := 0; j < maxUpdates && i+j < len(ids); j++ {
+			e := <-ch
+			if e != nil {
+				err = e
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *FlipParser) updateAuction(id uint64) error {
+	p.log.Info("updating auction", "id", id)
+
+	auc, err := p.contract.ContractWS.Bids(nil, new(big.Int).SetUint64(id))
+	if err != nil {
+		return fmt.Errorf("failed to update auction %d: %s", id, err.Error())
+	}
+
+	a := auction{
+		Lot: auc.Lot.String(),
+		Bid: auc.Bid.String(),
+		Tab: auc.Tab.String(),
+		Guy: auc.Tab.String(),
+		Tic: auc.Tic.Uint64(),
+		End: auc.Tic.Uint64(),
+		Usr: auc.Usr.String(),
+		Gal: auc.Gal.String(),
+	}
+
+	a.Phase = p.makeAuctionPhase(a)
+	p.state.Auctions[id] = a
+
+	return nil
+}
+
+func (p *FlipParser) makeAuctionsHistory(ids []uint64) error {
+	maxUpdates := 100
+	for i := 0; i < len(ids); i += maxUpdates {
+
+		ch := make(chan error)
+		for j := 0; j < maxUpdates && i+j < len(ids); j++ {
+			id := ids[i+j]
+			go func() { ch <- p.makeAuctionHistory(uint64(id)) }()
+		}
+
+		var err error = nil
+		for j := 0; j < maxUpdates && i+j < len(ids); j++ {
+			e := <-ch
+			if e != nil {
+				err = e
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *FlipParser) makeAuctionHistory(id uint64) error {
+	p.log.Info("making history", "id", id)
+
+	kickEvent, ok := p.state.KickEvents[id]
+	if !ok {
+		panic(fmt.Sprintf("have no kick event for auction %d", id))
+	}
+	kickBlock := kickEvent.BlockNum
+	kickTxIndex := kickEvent.TxIndex
+
+	lastBidEvent, ok := p.state.LastBidEvents[id]
+	if !ok {
+		panic(fmt.Sprintf("have no last bid event for auction %d", id))
+	}
+	lastBidEventBlock := lastBidEvent.BlockNum
+	lastBidEventTxIndex := lastBidEvent.TxIndex
+
+	tau := p.getTAUAtTx(kickBlock, kickTxIndex)
+	ttl := p.getTTLAtTx(lastBidEventBlock, lastBidEventTxIndex)
+
+	tauBlock, err := eth.GetWSClient().BlockByNumber(context.Background(), new(big.Int).SetUint64(kickBlock))
+	if err != nil {
+		return fmt.Errorf("could not request tau block: %s", err.Error())
+	}
+	tauTS := new(big.Int).SetUint64(tauBlock.Header().Time)
+
+	ttlBlock, err := eth.GetWSClient().BlockByNumber(context.Background(), new(big.Int).SetUint64(lastBidEventBlock))
+	if err != nil {
+		return fmt.Errorf("could not request ttl block timestamp: %s", err.Error())
+	}
+	ttlTS := new(big.Int).SetUint64(ttlBlock.Header().Time)
+
+	var end *big.Int
+	if new(big.Int).Add(tauTS, tau).Cmp(new(big.Int).Add(ttlTS, ttl)) < 0 {
+		end = new(big.Int).Add(tauTS, tau)
+	} else {
+		end = new(big.Int).Add(ttlTS, ttl)
+	}
+
+	p.state.Histories[id] = history{
+		ID:  id,
+		Lot: lastBidEvent.Lot,
+		Bid: lastBidEvent.Bid,
+		Tab: kickEvent.Tab,
+		Guy: lastBidEvent.Usr,
+		End: end.Uint64(),
+	}
+
+	delete(p.state.Auctions, id)
+	delete(p.state.LastBidEvents, id)
+	delete(p.state.KickEvents, id)
 
 	return nil
 }
 
 func (p *FlipParser) getEventsInBlocks(startBlock uint64, endBlock uint64) ([]types.Log, error) {
-
-	p.log.Info("requesting events", "from", startBlock, "to", endBlock)
 
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(startBlock)),
@@ -405,6 +577,32 @@ func (p *FlipParser) parseFileEvent(event types.Log) {
 	}
 }
 
+func (p *FlipParser) updateAuctionPhases() {
+	for k := range p.state.Auctions {
+		auc := p.state.Auctions[k]
+		auc.Phase = p.makeAuctionPhase(auc)
+		p.state.Auctions[k] = auc
+	}
+}
+
+func (p *FlipParser) makeAuctionPhase(auc auction) string {
+	phase := "DAI"
+	if strings.Compare(auc.Bid, auc.Tab) == 0 {
+		phase = "GEM"
+	}
+
+	currentTS := uint64(time.Now().Unix())
+	if auc.End == 0 {
+		phase = "DEL"
+	} else if auc.Tic != 0 && (auc.End < currentTS || auc.Tic < currentTS) {
+		phase = "FIN"
+	} else if auc.Tic == 0 && auc.End < currentTS {
+		phase = "RES"
+	}
+
+	return phase
+}
+
 func (p *FlipParser) saveState() {
 	lastBlock := p.state.LastBlock
 	filtered := []state{}
@@ -416,6 +614,7 @@ func (p *FlipParser) saveState() {
 	}
 
 	filtered = append(filtered, deepcopy.Copy(p.state).(state))
+	p.savedStates = filtered
 
 	p.db.WriteJSON(p.state)
 }
@@ -431,4 +630,52 @@ func (p *FlipParser) revertState(blockNum uint64) {
 
 	p.log.Crit("could not revert state", "block", p.state.LastBlock, "revert", blockNum)
 	panic("")
+}
+
+func (p *FlipParser) getTTLAtTx(blockNum uint64, txIndex uint64) *big.Int {
+	bestTTL := new(big.Int).SetInt64(0)
+	bestBlockNum := -1
+	bestTxIndex := -1
+	for _, v := range p.state.TTLs {
+		if v.BlockNum < blockNum ||
+			(v.BlockNum == blockNum && v.TxIndex < txIndex) {
+			if int(v.BlockNum) > bestBlockNum ||
+				(int(v.BlockNum) == bestBlockNum && int(v.TxIndex) > bestTxIndex) {
+				var ok bool
+
+				bestTTL, ok = new(big.Int).SetString(v.TTL, 10)
+				if !ok {
+					panic("could not create big int from ttl")
+				}
+				bestBlockNum = int(v.BlockNum)
+				bestTxIndex = int(v.TxIndex)
+			}
+		}
+	}
+
+	return bestTTL
+}
+
+func (p *FlipParser) getTAUAtTx(blockNum uint64, txIndex uint64) *big.Int {
+	bestTAU := new(big.Int).SetInt64(0)
+	bestBlockNum := -1
+	bestTxIndex := -1
+	for _, v := range p.state.TAUs {
+		if v.BlockNum < blockNum ||
+			(v.BlockNum == blockNum && v.TxIndex < txIndex) {
+			if int(v.BlockNum) > bestBlockNum ||
+				(int(v.BlockNum) == bestBlockNum && int(v.TxIndex) > bestTxIndex) {
+				var ok bool
+
+				bestTAU, ok = new(big.Int).SetString(v.TAU, 10)
+				if !ok {
+					panic("could not create big int from tau")
+				}
+				bestBlockNum = int(v.BlockNum)
+				bestTxIndex = int(v.TxIndex)
+			}
+		}
+	}
+
+	return bestTAU
 }
