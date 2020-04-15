@@ -60,13 +60,14 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, b, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Error("error while reading", "err", err.Error())
 			}
 			break
 		}
+		go handleIncomingMessage(c, b)
 	}
 }
 
@@ -123,6 +124,11 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+	log.Info("client connected", "client", &client)
 
-	hub.broadcast <- flipStateToMsg("ETH")
+	client.send <- flipStateToMsg("ETH")
+	client.send <- flipStateToMsg("BAT")
+	client.send <- flipStateToMsg("USDC")
+	client.send <- flapStateToMsg()
+	client.send <- flopStateToMsg()
 }

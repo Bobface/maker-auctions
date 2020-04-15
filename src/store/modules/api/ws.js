@@ -8,10 +8,13 @@ const getters = {
 const actions = {
     wsSetSocket({ commit, dispatch }, wsSocket) {
 
-        wsSocket.on('data', (msg) => {
-            dispatch('wsMsgReceived', JSON.parse(msg))
-        })
+        wsSocket.onerror = function(error) {
+            console.log(error)
+        }
 
+        wsSocket.onmessage = function (e) {
+            dispatch('wsMsgReceived', JSON.parse(e.data))
+        }
         commit('wsSetSocket', wsSocket)
     },
     wsMsgReceived({ dispatch }, msg ) {
@@ -31,7 +34,7 @@ const actions = {
         }
     },
     wsSendMsg({ state }, msg) {
-        state.wsSocket.emit('data', msg)
+        state.wsSocket.send(msg)
     }
 }
 

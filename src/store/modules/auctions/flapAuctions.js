@@ -16,46 +16,43 @@ const getters = {
 const actions = {
     setFlapAuctionsFromWS({ commit, rootState }, msg) {
 
-        const parsed = {
-            auctions: [],
-            history: [],
+        const parsedAuctions = []
+        let parsedHistory = []
+
+        if(msg.auctions) {
+            Object.keys(msg.auctions).forEach(function(id) {
+                parsedAuctions.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
+            })
         }
 
-        Object.keys(msg.auctions).forEach(function(id) {
-            parsed.auctions.push(makeAuctionFromRaw(rootState, id, msg.auctions[id]))
-        })
-        Object.keys(msg.history).forEach(function(id) {
-            parsed.history.push(makeHistoryFromRaw(id, msg.history[id]))
-        })
-        
+        if(msg.histories) {
+            Object.keys(msg.histories).forEach(function(id) {
+                parsedHistory.push(makeHistoryFromRaw(id, msg.histories[id]))
+            })
+        }
 
         // Check for invalid entries
-        for(let i = 0; i < parsed.auctions.length; i++) {
+        for(let i = 0; i < parsedAuctions.length; i++) {
 
-            const check = parsed.auctions[i]
-            if(check.raw.isValid) {
-                continue
-            }
-            
             let prev
             // Do we have a previous valid entry?
             for(let c = 0; c < state.flapAuctions.length; c++) {
-                if(state.flapAuctions[c].id === check.id) {
+                if(state.flapAuctions[c].id === parsedAuctions[i].id) {
                     prev = state.flapAuctions[c]
                     break
                 }
             }
 
             if(prev) {
-                parsed.auctions[i] = prev
+                parsedAuctions[i] = prev
             }
         }
 
         const append = []
         for(let i = 0; i < state.flapHistory.length; i++) {
             let found = false
-            for(let c = 0; c < parsed.history.length; c++) {
-                if(state.flapHistory[i].id === parsed.history[c].id) {
+            for(let c = 0; c < parsedHistory.length; c++) {
+                if(state.flapHistory[i].id === parsedHistory[c].id) {
                     found = true
                     break
                 }
@@ -68,21 +65,21 @@ const actions = {
             append.push(state.flapHistory[i])
         }
 
-        parsed.history = parsed.history.concat(...append)
-        parsed.history.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+        parsedHistory = parsedHistory.concat(...append)
+        parsedHistory.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
 
-        parsed.auctions.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
+        parsedAuctions.sort((lhs, rhs) => {return parseInt(rhs.id) - parseInt(lhs.id)})
 
         commit('setFlapAuctionsInitialized', true)
-        commit('setFlapAuctions', parsed.auctions)
-        commit('setFlapHistory', parsed.history)
+        commit('setFlapAuctions', parsedAuctions)
+        commit('setFlapHistory', parsedHistory)
     },
 
     setFlapHistoryFromWS({ commit, state }, msg) {
         let parsed = []
 
-        Object.keys(msg).forEach(function(id) {
-            parsed.push(makeHistoryFromRaw(id, msg[id]))
+        Object.keys(msg.histories).forEach(function(id) {
+            parsed.push(makeHistoryFromRaw(id, msg.histories[id]))
         })
 
         const append = []
@@ -119,7 +116,7 @@ const actions = {
         const msg = {
             topic: 'flapHistory',
             content: {
-                lastID: lastID,
+                lastID: parseInt(lastID),
             },
         }
 
@@ -134,17 +131,6 @@ const mutations = {
 }
 
 function makeAuctionFromRaw(rootState, id, raw) {
-
-    if(!raw.isValid) {
-        // Invalid. Check if initialized at least
-        if(raw.lot === undefined) {
-            return {
-                id: id,
-                phase: 'INV',
-                raw: raw,
-            }
-        }
-    }
 
     let amount = BigNumber(raw.lot).div(BigNumber(10).pow(45)).toFixed(2)
     let end
@@ -176,7 +162,6 @@ function makeAuctionFromRaw(rootState, id, raw) {
 }
 
 function makeHistoryFromRaw(id, raw) {
-
     const amount = BigNumber(raw.lot).div(BigNumber(10).pow(45)).toFixed(2)
 
     return {

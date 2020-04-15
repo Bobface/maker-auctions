@@ -32,6 +32,7 @@ func (h *Hub) run() {
 			h.clients[client] = true
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				log.Info("client disconnected", "client", &client)
 				delete(h.clients, client)
 				close(client.send)
 			}

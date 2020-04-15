@@ -24,7 +24,7 @@ truffle.stdout.pipe(process.stdout)
 truffle.on('exit', function() {
 
     console.log('--- Starting api')
-    const api = exec('node ../api/main.js --webtest', {cwd: '../api/'})
+    const api = exec('go run main.go --webtest', {cwd: '../api-go/'})
     api.stdout.pipe(process.stdout)
 
     console.log('--- Starting node webserver')

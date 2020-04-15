@@ -1,6 +1,8 @@
 package contracts
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"strings"
 
 	"../eth"
@@ -78,6 +80,29 @@ func New() Contracts {
 	var flopAddr common.Address
 
 	if global.IsWebtest() {
+		b, err := ioutil.ReadFile("../build/webtest/addresses.json")
+		if err != nil {
+			panic(err)
+		}
+
+		addresses := struct {
+			ETHFlip  string `json:"ethFlip"`
+			BATFlip  string `json:"batFlip"`
+			USDCFlip string `json:"usdcFlip"`
+			Flap     string `json:"flap"`
+			Flop     string `json:"flop"`
+		}{}
+
+		err = json.Unmarshal(b, &addresses)
+		if err != nil {
+			panic(err)
+		}
+
+		ethFlipAddr = common.HexToAddress(addresses.ETHFlip)
+		batFlipAddr = common.HexToAddress(addresses.BATFlip)
+		usdcFlipAddr = common.HexToAddress(addresses.USDCFlip)
+		flapAddr = common.HexToAddress(addresses.Flap)
+		flopAddr = common.HexToAddress(addresses.Flop)
 
 	} else {
 		ethFlipAddr = common.HexToAddress("0xd8a04F5412223F513DC55F839574430f5EC15531")
