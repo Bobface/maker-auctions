@@ -153,7 +153,7 @@ func New() Contracts {
 		panic("")
 	}
 
-	log.Info("loaded contracts")
+	log.Info("contracts loaded")
 
 	return Contracts{
 		ETHFlip: FlipContract{

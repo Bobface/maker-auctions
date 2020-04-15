@@ -33,8 +33,8 @@ const (
 	fileTAU = "7461750000000000000000000000000000000000000000000000000000000000"
 )
 
-// Fields must be exported to be deep-copyable
-type kickEvent struct {
+// KickEvent defines a kick event
+type KickEvent struct {
 	ID       uint64 `json:"id"`
 	Lot      string `json:"lot"`
 	Bid      string `json:"bid"`
@@ -45,7 +45,8 @@ type kickEvent struct {
 	TxIndex  uint64 `json:"txIndex"`
 }
 
-type bidEvent struct {
+// BidEvent defines a bid event
+type BidEvent struct {
 	ID       uint64 `json:"id"`
 	Lot      string `json:"lot"`
 	Bid      string `json:"bid"`
@@ -54,19 +55,22 @@ type bidEvent struct {
 	TxIndex  uint64 `json:"txIndex"`
 }
 
-type ttlEvent struct {
+// TTLEvent defines a ttl change
+type TTLEvent struct {
 	TTL      string `json:"ttl"`
 	BlockNum uint64 `json:"blockNum"`
 	TxIndex  uint64 `json:"txIndex"`
 }
 
-type tauEvent struct {
+// TAUEvent defines a tau change
+type TAUEvent struct {
 	TAU      string `json:"tau"`
 	BlockNum uint64 `json:"blockNum"`
 	TxIndex  uint64 `json:"txIndex"`
 }
 
-type auction struct {
+// Auction defines an auction
+type Auction struct {
 	ID    uint64 `json:"id"`
 	Phase string `json:"phase"`
 	Lot   string `json:"lot"`
@@ -79,7 +83,8 @@ type auction struct {
 	Gal   string `json:"gal"`
 }
 
-type history struct {
+// History defines an auction history
+type History struct {
 	ID  uint64 `json:"id"`
 	Lot string `json:"lot"`
 	Bid string `json:"bid"`
@@ -88,18 +93,18 @@ type history struct {
 	End uint64 `json:"end"`
 }
 
-// Fields must be exported to be deep-copyable
-type state struct {
+// State defines the state of the flip parser
+type State struct {
 	LastBlock uint64 `json:"lastBlock"`
 
-	Auctions  map[uint64]auction `json:"auctions"`
-	Histories map[uint64]history `json:"histories"`
+	Auctions  map[uint64]Auction `json:"auctions"`
+	Histories map[uint64]History `json:"histories"`
 
-	KickEvents    map[uint64]kickEvent `json:"kickEvents"`
-	LastBidEvents map[uint64]bidEvent  `json:"bidEvents"`
+	KickEvents    map[uint64]KickEvent `json:"kickEvents"`
+	LastBidEvents map[uint64]BidEvent  `json:"bidEvents"`
 
-	TTLs []ttlEvent `json:"ttls"`
-	TAUs []tauEvent `json:"taus"`
+	TTLs []TTLEvent `json:"ttls"`
+	TAUs []TAUEvent `json:"taus"`
 }
 
 // FlipParser defines a flip parser
@@ -110,8 +115,8 @@ type FlipParser struct {
 	token         string
 	startBlockNum *big.Int
 	contract      contracts.FlipContract
-	savedStates   []state
-	state         state
+	savedStates   []State
+	state         State
 }
 
 // New creates a new flip parser instance
@@ -126,7 +131,7 @@ func New(
 		token:         token,
 		contract:      contract,
 		startBlockNum: startBlockNum,
-		savedStates:   []state{},
+		savedStates:   []State{},
 	}
 }
 
@@ -137,23 +142,23 @@ func (p *FlipParser) Run() {
 	err := json.Unmarshal([]byte(dbContent), &p.state)
 	if err != nil {
 		p.log.Info("could not parse db. creating default content")
-		p.state = state{
+		p.state = State{
 
-			Auctions:  make(map[uint64]auction),
-			Histories: make(map[uint64]history),
+			Auctions:  make(map[uint64]Auction),
+			Histories: make(map[uint64]History),
 
-			KickEvents:    make(map[uint64]kickEvent),
-			LastBidEvents: make(map[uint64]bidEvent),
+			KickEvents:    make(map[uint64]KickEvent),
+			LastBidEvents: make(map[uint64]BidEvent),
 
-			TTLs: []ttlEvent{
-				ttlEvent{
+			TTLs: []TTLEvent{
+				TTLEvent{
 					TTL:      "10800",
 					BlockNum: 0,
 					TxIndex:  0,
 				},
 			},
-			TAUs: []tauEvent{
-				tauEvent{
+			TAUs: []TAUEvent{
+				TAUEvent{
 					TAU:      "172800",
 					BlockNum: 0,
 					TxIndex:  0,
@@ -188,7 +193,7 @@ func (p *FlipParser) Run() {
 // onNewBlock runs when a new block is received
 func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 
-	stateCpy := deepcopy.Copy(p.state).(state)
+	stateCpy := deepcopy.Copy(p.state).(State)
 
 	blockNum := blockNumBig.Uint64()
 	var startParseBlock uint64
@@ -197,9 +202,11 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 		startParseBlock = p.state.LastBlock + 1
 		endParseBlock = blockNum
 	} else {
-		// Chain reorg. Revert state to 1 block before reorg
-		p.log.Info("chain reorg detected", "old", p.state.LastBlock, "new", blockNum)
-		p.revertState(blockNum)
+		if blockNum != p.startBlockNum.Uint64() {
+			// Chain reorg. Revert state to 1 block before reorg
+			p.log.Info("chain reorg detected", "old", p.state.LastBlock, "new", blockNum)
+			p.revertState(blockNum)
+		}
 
 		startParseBlock = blockNum
 		endParseBlock = blockNum
@@ -217,6 +224,7 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 	p.updateAuctionPhases()
 	p.state.LastBlock = endParseBlock
 	p.saveState()
+
 	/*
 	  wsStateCallback(state)
 	  printState()
@@ -347,7 +355,7 @@ func (p *FlipParser) updateAuction(id uint64) error {
 		return fmt.Errorf("failed to update auction %d: %s", id, err.Error())
 	}
 
-	a := auction{
+	a := Auction{
 		Lot: auc.Lot.String(),
 		Bid: auc.Bid.String(),
 		Tab: auc.Tab.String(),
@@ -429,7 +437,7 @@ func (p *FlipParser) makeAuctionHistory(id uint64) error {
 		end = new(big.Int).Add(ttlTS, ttl)
 	}
 
-	p.state.Histories[id] = history{
+	p.state.Histories[id] = History{
 		ID:  id,
 		Lot: lastBidEvent.Lot,
 		Bid: lastBidEvent.Bid,
@@ -486,7 +494,7 @@ func (p *FlipParser) parseKickEvent(event types.Log) uint64 {
 		panic("failed to parse kick tab to big")
 	}
 
-	parsed := kickEvent{
+	parsed := KickEvent{
 		ID:       idBig.Uint64(),
 		Lot:      lotBig.String(),
 		Bid:      bidBig.String(),
@@ -522,7 +530,7 @@ func (p *FlipParser) parseTendOrDentEvent(event types.Log) uint64 {
 		panic("failed to parse tend/dent bid to big")
 	}
 
-	parsed := bidEvent{
+	parsed := BidEvent{
 		ID:       idBig.Uint64(),
 		Lot:      lotBig.String(),
 		Bid:      bidBig.String(),
@@ -563,13 +571,13 @@ func (p *FlipParser) parseFileEvent(event types.Log) {
 	}
 
 	if strings.Compare(what, fileTTL) == 0 {
-		p.state.TTLs = append(p.state.TTLs, ttlEvent{
+		p.state.TTLs = append(p.state.TTLs, TTLEvent{
 			TTL:      valueBig.String(),
 			BlockNum: event.BlockNumber,
 			TxIndex:  uint64(event.TxIndex),
 		})
 	} else if strings.Compare(what, fileTTL) == 0 {
-		p.state.TAUs = append(p.state.TAUs, tauEvent{
+		p.state.TAUs = append(p.state.TAUs, TAUEvent{
 			TAU:      valueBig.String(),
 			BlockNum: event.BlockNumber,
 			TxIndex:  uint64(event.TxIndex),
@@ -585,7 +593,7 @@ func (p *FlipParser) updateAuctionPhases() {
 	}
 }
 
-func (p *FlipParser) makeAuctionPhase(auc auction) string {
+func (p *FlipParser) makeAuctionPhase(auc Auction) string {
 	phase := "DAI"
 	if strings.Compare(auc.Bid, auc.Tab) == 0 {
 		phase = "GEM"
@@ -605,7 +613,7 @@ func (p *FlipParser) makeAuctionPhase(auc auction) string {
 
 func (p *FlipParser) saveState() {
 	lastBlock := p.state.LastBlock
-	filtered := []state{}
+	filtered := []State{}
 
 	for i, s := range p.savedStates {
 		if s.LastBlock < lastBlock && s.LastBlock+10 >= lastBlock {
@@ -613,7 +621,7 @@ func (p *FlipParser) saveState() {
 		}
 	}
 
-	filtered = append(filtered, deepcopy.Copy(p.state).(state))
+	filtered = append(filtered, deepcopy.Copy(p.state).(State))
 	p.savedStates = filtered
 
 	p.db.WriteJSON(p.state)
@@ -623,7 +631,7 @@ func (p *FlipParser) revertState(blockNum uint64) {
 	for i, s := range p.savedStates {
 		if s.LastBlock == blockNum-1 {
 			p.log.Info("reverting state", "to", s.LastBlock)
-			p.state = deepcopy.Copy(p.savedStates[i]).(state)
+			p.state = deepcopy.Copy(p.savedStates[i]).(State)
 			return
 		}
 	}

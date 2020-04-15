@@ -7,6 +7,7 @@ import (
 	"./eth"
 	"./global"
 	"./parsers/flipparser"
+	"./wsserver"
 	"github.com/inconshreveable/log15"
 )
 
@@ -25,5 +26,7 @@ func main() {
 	log.Info("received initial block number", "num", latestBlock.Number().String())
 
 	ethFlipParser := flipparser.New("ETH", latestBlock.Number(), con.ETHFlip)
-	ethFlipParser.Run()
+	go ethFlipParser.Run()
+
+	wsserver.Run()
 }
