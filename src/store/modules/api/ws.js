@@ -1,20 +1,34 @@
 const state = {
-    wsSocket: undefined
+    wsSocket: undefined,
+    url: '',
 }
 
 const getters = {
+    
 }
 
 const actions = {
-    wsSetSocket({ commit, dispatch }, wsSocket) {
+    init({commit, dispatch}, url) {
+        commit('wsSetUrl', url)
+        dispatch('wsConnect')
+    },
+    wsConnect({ state, commit, dispatch }) {
+
+        const wsSocket = new WebSocket(state.url)
 
         wsSocket.onerror = function(error) {
             console.log(error)
         }
 
+        wsSocket.onclose = function(error) {
+            console.log(error)
+            setTimeout(() => {dispatch('wsConnect')}, 2000)
+        }
+
         wsSocket.onmessage = function (e) {
             dispatch('wsMsgReceived', JSON.parse(e.data))
         }
+
         commit('wsSetSocket', wsSocket)
     },
     wsMsgReceived({ dispatch }, msg ) {
@@ -39,6 +53,7 @@ const actions = {
 }
 
 const mutations = {
+    wsSetUrl: (state, url) => (state.url = url),
     wsSetSocket: (state, socket) => (state.wsSocket = socket),
 }
 
