@@ -11,8 +11,8 @@ import (
 
 	"github.com/mohae/deepcopy"
 
-	db "../../DB"
 	"../../contracts"
+	"../../db"
 	"../../eth"
 	"../../global"
 	"../../util"
