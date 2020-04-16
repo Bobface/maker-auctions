@@ -515,6 +515,8 @@ func (p *FlipParser) parseKickEvent(event types.Log) uint64 {
 
 	p.state.KickEvents[parsed.ID] = parsed
 
+	fmt.Printf("new kick event: %+v\n", parsed)
+
 	if p.isInitialized {
 		p.kickChan <- parsed
 	}
@@ -552,6 +554,8 @@ func (p *FlipParser) parseTendOrDentEvent(event types.Log) uint64 {
 		TxIndex:  uint64(event.TxIndex),
 	}
 
+	fmt.Printf("new tend or dent event: %+v\n", parsed)
+
 	lastEvent, has := p.state.LastBidEvents[parsed.ID]
 	if !has ||
 		lastEvent.BlockNum < parsed.BlockNum ||
@@ -569,6 +573,8 @@ func (p *FlipParser) parseDealEvent(event types.Log) uint64 {
 	if !ok {
 		panic("failed to parse deal id to big")
 	}
+
+	fmt.Printf("new deal event: %s\n", idHex)
 
 	return idBig.Uint64()
 }
