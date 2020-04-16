@@ -210,11 +210,11 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 	var endParseBlock uint64
 
 	if blockNum > p.state.LastBlock {
-		if p.haveSavedState(p.state.LastBlock - 1) {
-			startParseBlock = p.state.LastBlock
+		if p.haveSavedState(p.state.LastBlock - 5) {
+			startParseBlock = p.state.LastBlock - 4
 			endParseBlock = blockNum
 
-			p.revertState(p.state.LastBlock)
+			p.revertState(startParseBlock)
 		} else {
 			startParseBlock = p.state.LastBlock + 1
 			endParseBlock = blockNum
