@@ -210,8 +210,15 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 	var endParseBlock uint64
 
 	if blockNum > p.state.LastBlock {
-		startParseBlock = p.state.LastBlock + 1
-		endParseBlock = blockNum
+		if p.haveSavedState(p.state.LastBlock - 1) {
+			startParseBlock = p.state.LastBlock
+			endParseBlock = blockNum
+
+			p.revertState(p.state.LastBlock)
+		} else {
+			startParseBlock = p.state.LastBlock + 1
+			endParseBlock = blockNum
+		}
 	} else {
 		if blockNum != p.startBlockNum.Uint64() {
 			// Chain reorg. Revert state to 1 block before reorg
@@ -630,6 +637,16 @@ func (p *FlipParser) makeAuctionPhase(auc Auction) string {
 	return phase
 }
 
+func (p *FlipParser) haveSavedState(blockNum uint64) bool {
+	for _, s := range p.savedStates {
+		if s.LastBlock == blockNum {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p *FlipParser) saveState() {
 	lastBlock := p.state.LastBlock
 	filtered := []State{}
@@ -649,7 +666,6 @@ func (p *FlipParser) saveState() {
 func (p *FlipParser) revertState(blockNum uint64) {
 	for i, s := range p.savedStates {
 		if s.LastBlock == blockNum-1 {
-			p.log.Info("reverting state", "to", s.LastBlock)
 			p.state = deepcopy.Copy(p.savedStates[i]).(State)
 			return
 		}

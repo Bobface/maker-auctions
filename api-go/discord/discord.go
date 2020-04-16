@@ -25,6 +25,12 @@ var (
 	// FlopChan is the channel for flap kick updates
 	FlopChan chan flopparser.KickEvent
 
+	flipETHSent  map[uint64]bool
+	flipBATSent  map[uint64]bool
+	flipUSDCSent map[uint64]bool
+	flapSent     map[uint64]bool
+	flopSent     map[uint64]bool
+
 	discord *discordgo.Session
 )
 
@@ -36,6 +42,12 @@ func Run() {
 	FlapChan = make(chan flapparser.KickEvent)
 	FlopChan = make(chan flopparser.KickEvent)
 
+	flipETHSent = make(map[uint64]bool)
+	flipBATSent = make(map[uint64]bool)
+	flipUSDCSent = make(map[uint64]bool)
+	flapSent = make(map[uint64]bool)
+	flopSent = make(map[uint64]bool)
+
 	var err error
 	discord, err = discordgo.New(fmt.Sprintf("Bot %s", global.GetDiscordKey()))
 	if err != nil {
@@ -46,15 +58,30 @@ func Run() {
 		for {
 			select {
 			case auction := <-FlipETHChan:
-				handleNewFlipAuction("ETH", auction)
+				if _, have := flipETHSent[auction.ID]; !have {
+					flipETHSent[auction.ID] = true
+					handleNewFlipAuction("ETH", auction)
+				}
 			case auction := <-FlipBATChan:
-				handleNewFlipAuction("BAT", auction)
+				if _, have := flipBATSent[auction.ID]; !have {
+					flipBATSent[auction.ID] = true
+					handleNewFlipAuction("BAT", auction)
+				}
 			case auction := <-FlipUSDCChan:
-				handleNewFlipAuction("USDC", auction)
+				if _, have := flipUSDCSent[auction.ID]; !have {
+					flipUSDCSent[auction.ID] = true
+					handleNewFlipAuction("USDC", auction)
+				}
 			case auction := <-FlapChan:
-				handleNewFlapAuction(auction)
+				if _, have := flapSent[auction.ID]; !have {
+					flapSent[auction.ID] = true
+					handleNewFlapAuction(auction)
+				}
 			case auction := <-FlopChan:
-				handleNewFlopAuction(auction)
+				if _, have := flopSent[auction.ID]; !have {
+					flopSent[auction.ID] = true
+					handleNewFlopAuction(auction)
+				}
 			}
 		}
 	}()
