@@ -208,6 +208,12 @@ func (p *FlipParser) onNewBlock(blockNumBig *big.Int) {
 	blockNum := blockNumBig.Uint64()
 	var startParseBlock uint64
 	var endParseBlock uint64
+
+	// Tr parsing the last 3 blocks, always
+	if blockNum > p.startBlockNum.Uint64()+3 {
+		blockNum = blockNum - 3
+	}
+
 	if blockNum > p.state.LastBlock {
 		startParseBlock = p.state.LastBlock + 1
 		endParseBlock = blockNum
