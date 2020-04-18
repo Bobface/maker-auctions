@@ -602,7 +602,7 @@ func (p *FlipParser) parseFileEvent(event types.Log) {
 			BlockNum: event.BlockNumber,
 			TxIndex:  uint64(event.TxIndex),
 		})
-	} else if strings.Compare(what, fileTTL) == 0 {
+	} else if strings.Compare(what, fileTAU) == 0 {
 		p.state.TAUs = append(p.state.TAUs, TAUEvent{
 			TAU:      valueBig.String(),
 			BlockNum: event.BlockNumber,
