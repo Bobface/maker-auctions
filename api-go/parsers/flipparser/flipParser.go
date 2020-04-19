@@ -371,6 +371,7 @@ func (p *FlipParser) updateAuction(id uint64) error {
 	}
 
 	a := Auction{
+		ID:  id,
 		Lot: auc.Lot.String(),
 		Bid: auc.Bid.String(),
 		Tab: auc.Tab.String(),

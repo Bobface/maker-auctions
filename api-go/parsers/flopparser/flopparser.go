@@ -350,6 +350,7 @@ func (p *FlopParser) updateAuction(id uint64) error {
 	}
 
 	a := Auction{
+		ID:  id,
 		Lot: auc.Lot.String(),
 		Bid: auc.Bid.String(),
 		Guy: auc.Guy.String(),
