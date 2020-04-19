@@ -204,7 +204,7 @@ const actions = {
         const fastGas = rootState.ethgasstation.gasFast
 
         try {
-            await rootState.contracts.proxy.contract.methods.flipBidDai(bytes, auctionParams.id, pullBN, bidBN, auctionParams.raw.lot).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
+            await rootState.contracts.proxy.contract.methods.flipBidDai(bytes, auctionParams.id, new web3.utils.BN(pullBN), new web3.utils.BN(bidBN), auctionParams.raw.lot).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
             .on('transactionHash', function(tx) { 
                 if(txCallback) {
                     txCallback(tx)
@@ -230,7 +230,7 @@ const actions = {
         const tab = new web3.utils.BN(auctionParams.raw.tab.toString(10))
 
         try {
-            await rootState.contracts.proxy.contract.methods.flipReduceLot(bytes, auctionParams.id, pullBN, tab, lotBN).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
+            await rootState.contracts.proxy.contract.methods.flipReduceLot(bytes, auctionParams.id, new web3.utils.BN(pullBN), tab, new web3.utils.BN(lotBN)).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
             .on('transactionHash', function(tx) { 
                 if(txCallback) {
                     txCallback(tx)
