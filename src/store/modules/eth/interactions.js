@@ -202,9 +202,10 @@ const actions = {
         const web3 = rootState.web3Provider.web3
         const bytes = getTokenBytes(auctionParams.currency)
         const fastGas = rootState.ethgasstation.gasFast
+        const lot = new web3.utils.BN(auctionParams.raw.lot.toString(10))
 
         try {
-            await rootState.contracts.proxy.contract.methods.flipBidDai(bytes, auctionParams.id, new web3.utils.BN(pullBN), new web3.utils.BN(bidBN), auctionParams.raw.lot).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
+            await rootState.contracts.proxy.contract.methods.flipBidDai(bytes, auctionParams.id, new web3.utils.BN(pullBN), new web3.utils.BN(bidBN), lot).send({from: web3.eth.defaultAccount, gasPrice: fastGas})
             .on('transactionHash', function(tx) { 
                 if(txCallback) {
                     txCallback(tx)
