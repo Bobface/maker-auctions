@@ -431,7 +431,7 @@ export default {
 
           this.confirmButtonEnabled = false
           this.confirmCheckboxEnabled = false
-
+    
           const BN45 = BigNumber.clone({ DECIMAL_PLACES: 45})
           if(this.flipAuctionParams.raw.phase === 'DAI') {
               this.flipBidDai({
