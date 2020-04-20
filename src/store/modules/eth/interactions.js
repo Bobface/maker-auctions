@@ -83,8 +83,7 @@ const actions = {
             return
         }
 
-        const web3 = rootState.web3Provider.web3
-        const uint256max = new web3.utils.BN('2').pow(new web3.utils.BN('256')).sub(new web3.utils.BN('1'))
+        const uint256max = BigNumber(2).exponentiatedBy(BigNumber(256)).minus(BigNumber(1))
 
         dispatch('approveTokenAmountBN', {
             token: token,
