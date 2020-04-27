@@ -1,3 +1,7 @@
+<p align="center">
+  <img height="350" src="https://raw.githubusercontent.com/Bobface/maker-auctions/master/src/assets/logo/Design2Render1Text.png">
+</p>
+
 # Maker Auctions
 Official repository for [maker-auctions.io](https://maker-auctions.io)
 
