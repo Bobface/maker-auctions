@@ -1,5 +1,6 @@
 <template>
     <md-toolbar class="md-primary md-dense" md-elevation="1" style="z-index: 3;">
+      <img src="../assets/logo/Design2Render1Pack/ms-icon-70x70.png" style="height:35px;"/>
       <h3 class="md-title" style="flex: 1;" ><router-link class="link" to="/">MAKER AUCTIONS</router-link></h3>
       <h3 style="flex: 1; color: red !important;" v-if="webtest">WEBTEST MODE</h3>
       <md-button @click="auctionsClicked" :class="{selected: (selected === 'auctions')}">Auctions</md-button>
